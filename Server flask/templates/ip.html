@@ -1,0 +1,47 @@
+{% extends "index.html" %}
+{% block cuerpo %}
+<P>
+    <!--Pone la dirección del servidor dentro de una casilla por las dudas, en el .ino se reemplaza la IP de abajo por una variable-->
+    <br><h1 style='font-size: xx-large;'>IP Actual del host:</h1></br>
+    <br><text style='margin: auto; padding: 5px; font-size: large; font-weight: normal; border: 1px solid #000000;'>{{ipArd}}</text></br>
+    <br></br>
+</P>
+<P>
+<P>
+    <br><h1 style='font-size: xx-large;'>DHCP:</h1></br>
+    {% if dhcp == 1: %}
+        <br><text style='margin: auto; padding: 5px; font-size: large; font-weight: normal; border: 1px solid #000000;'>On</text></br>
+    {% else %}
+        <br><text style='margin: auto; padding: 5px; font-size: large; font-weight: normal; border: 1px solid #000000;'>Off</text></br>
+    {% endif %}
+    <br></br>
+    <form action= "" method="POST">
+        <input type= "submit" name= "dhcp" value= "On" style= 'padding: 5px;'>
+        <input type= "submit" name= "dhcp" value= "Off" style= 'padding: 5px;'>
+    </form>
+</P>
+    <!--
+        Lo siguiente son dos formularios uno que engloba a una casilla para leer escribir la IP, que en el .ino siempre parte siendo la actual del host
+    y luego un botón de guardar que envia el formulario que envia todo así luego el .ino lo decodifica luego
+    -->
+    <br><h1 style='font-size: xx-large;'>IP guardada:</h1></br>
+    <br>
+        <form method='POST' name='guardarIP'><input name='formIp' type='text' value = {{dict ["ipDef"]}} style= 'text-align: left; margin-left: 3px; padding: 2px 2px;'>
+        <input name='botonIp' type='submit' style= 'padding: 5px;' value='Guardar'></form>
+    </br>
+</P>
+<p>
+    <!--Esta parte pone un botón formulario que genera un comando para luego mostrar los dos botones de abajo, este boton sirve para hacer un flag par luego confirmar el cambio de host-->
+    <form method='POST'><input name='reiniciar' type='submit' style= 'padding: 5px;' value='Reiniciar'></form>
+    <!--Los dos botones sirven para confirmacion o no del cambio de host, lo maneja el .ino leyendo la peticion si luego se envia Confimar o Cancelar-->
+    <form method='POST'>
+        <input name='conf' type='submit' style= 'padding: 5px;' value='Confirmar'>
+        <input name='cancel' type='submit' style= 'padding: 5px;' value='Cancelar'>
+    </form>
+    <!--Advertencia en rojo-->
+    <p style='color: red;'><br>*Presione confirmar para cambiar la dirección de host</br></p>
+</P>
+<!--Advertencia en rojo-->
+<p style='color: red; margin-top: 15px;'><br>*Al guardar un nueva IP se almacenará hasta cuando se reinicie el dispositivo, donde se hará efectivo el cambio</br></p>
+<br></br>
+{% endblock %}

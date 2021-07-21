@@ -1,0 +1,47 @@
+{% extends "index.html" %}
+{% block cuerpo %}
+        <!--Tabla que muestra todos los datos de monitoreo-->
+        <table class = 'tabla'>
+            <thead>
+                <tr><!--Fila superior-->
+                    <th>Tomacorriente</th>
+                    <th>1</th>
+                    <th>2</th>
+                    <th>3</th>
+                    <th>4</th>
+                    <th>5</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><!--Fila que muestras las corrientes, en los elementos se coloca un número de 0 a 20 u Off si está apagado-->
+                    <th style='font-weight: bolder;'>Corriente (A)</th>
+                    {% for i in range (5) %}
+                        {% if dict ["estTomas"][i] == 1 %}
+                            <th>{{ dict ["corriente"][i]}}</th>
+                        {% else %}
+                            <th>Off</th>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            </tbody>
+            <thead>
+                <tr><!--
+                        Se modifica el espacio que ocupan las celdas para que ocupen más y luego muestre la tensión del sensor,la segunda linea modifica toda la celda ya que
+                    en si es una celda de la cabecera y se la modifica para que parezca que es del cuerpo general
+                    -->
+                    <th colspan='2'>Tensión</th>
+                    <th colspan='4' style='background-color: #f3f3f3; border: 1px solid #dddddd; color: #000000; font-weight: normal;border-left:1px solid #1b5a8f;border-bottom:1px solid #1b5a8f;' >{{dict ["tension"]}}V</th>
+                </tr>
+                <tr><!--Fila del título para el sensor de temp y hum-->
+                    <th colspan='2.75'>Temperatura</th>
+                    <th colspan='4'>Humedad</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><!--Muestra la temperatura y humedad, en el .ino se escribe una variable y luego se agrega el °C o % aparte como un string-->
+                    <th colspan='2.75'>{{dict["tempAct"]}}°C</th>
+                    <th colspan='4'>{{dict["humAct"]}}%</th>
+                </tr>
+            </tbody>
+        </table>
+{% endblock %}

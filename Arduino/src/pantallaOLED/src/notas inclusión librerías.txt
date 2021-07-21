@@ -1,0 +1,5 @@
+Las librerias de a continuación están incluidas una dentro de la otra ya que está hecho para que el programa tome todos los archivos desde la carpeta, y debido a que el compilador de Arduino solo permite incluir por ruta relativa solo si está dentro de una carpeta "src" se tuvo que modificar los includes de las librerias para que funcione, las tres que están contenidas son:
+Adafruit_SSD1306: https://github.com/adafruit/Adafruit_SSD1306 
+	Adafruit GFX: https://github.com/adafruit/Adafruit-GFX-Library
+		Adafruit busIO: https://github.com/adafruit/Adafruit-GFX-Library
+	Están en ese ordén y sin modificaciones significativas.
