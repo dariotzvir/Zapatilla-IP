@@ -23,7 +23,7 @@
             {% endfor %}
         </tr>
         <tr>
-            <th style='font-weight: bold;'>Botón</th>
+            <th style='font-weight: bold;'>Acción</th>
             <!--
                 Los siguientes botones envian 0 o 1 si están prendidos o apagados, eso se configura en el .ino, al igual que diga On u Off
             si el toma está apagado el boton enviará un 1 cuando se pulse y tendrá el texto on, luego se invertirá
@@ -31,7 +31,7 @@
             {% for i in range (1,6) %}
             <th>
                 <form action="" method="POST">
-                    <input type="submit" name="{{i+1}}"
+                    <input type="submit" name="tomas+{{i}}"
                     {% if dict ["estTomas"][i]: %}
                         value = "Off"
                     {% else: %} 

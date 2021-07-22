@@ -381,13 +381,11 @@ void cargarSD ()
         if ( configJson.containsKey ( "tempMax" ) ) 
         {
             tempMax = configJson ["tempMax"];
-            Serial.println ( tempMax );
             if ( tempMax > 125 || tempMax < -40 ) tempMax = 125;
         }
         if ( configJson.containsKey ( "tempMin" ) )
         {
             tempMin = configJson ["tempMin"];
-            Serial.println ( tempMin );
             if ( tempMin > tempMax || tempMin < -40 ) tempMin = -40;
             //configJson ["tempMin"] <= tempMax && configJson ["tempMin"] >= -40
         }
