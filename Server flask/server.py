@@ -63,9 +63,9 @@ def htomas ():
 
 @app.route ( "/configIP", methods = ["GET", "POST"] ) 
 def ip ():
-    if request.form is not None:
-        cmd ( request.form )
-
+	if request.form is not None:
+		cmd ( request.form )
+        
     return render_template ( "ip.html", ipArd=ipArduino, dict=decode )  
 
 
