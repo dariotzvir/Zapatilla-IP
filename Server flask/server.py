@@ -6,7 +6,6 @@ import time
 
 ipArduino = "192.168.100.128"
 
-flag = 0
 decode = {
 	'tempMax': 0, 
 	'tempMin': 0, 
