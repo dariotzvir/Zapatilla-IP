@@ -7,34 +7,34 @@ import time
 ipArduino = "192.168.100.128"
 
 decode = {
-	'tempMax': 0, 
-	'tempMin': 0, 
-	'tempAct': 0, 
-	'humAct': 0, 
-	'tension': 0, 
-	'dhcp': 0, 
-	'mac': '00 00 00 00 00 00', 
-	'ipDef': '0.0.0.0', 
-	'estTomas': [0, 0, 0, 0, 0], 
-	'corriente': [0, 0, 0, 0, 0]
+    'tempMax': 0, 
+    'tempMin': 0, 
+    'tempAct': 0, 
+    'humAct': 0, 
+    'tension': 0, 
+    'dhcp': 0, 
+    'mac': '00 00 00 00 00 00', 
+    'ipDef': '0.0.0.0', 
+    'estTomas': [0, 0, 0, 0, 0], 
+    'corriente': [0, 0, 0, 0, 0]
 }
 
 
 def lec ():
-	global decode
-	global ip
-	while 1:
-		r = ""
-		devolucion = req.get ( (f"http://{ipArduino}/lec?todo") )
-		if type (devolucion.text) is str:
-			try: 
-				decode = json.loads ( devolucion.text )
-			except:
-				pass
-		time.sleep (3)
+    global decode
+    global ip
+    while 1:
+        r = ""
+        devolucion = req.get ( (f"http://{ipArduino}/lec?todo") )
+        if type (devolucion.text) is str:
+            try: 
+                decode = json.loads ( devolucion.text )
+            except:
+                pass
+        time.sleep (3)
 
 def cmd ( comando, valor ):
-	pass
+    pass
 
 def main ():
     lectura = threading.Thread ( target=lec )
@@ -51,19 +51,19 @@ def home ():
 @app.route ( "/configTemp", methods=["GET", "POST"] ) 
 def temp ():
 
-	return render_template ( "configTemp.html", dict=decode ) 
+    return render_template ( "configTemp.html", dict=decode ) 
 
 @app.route ( "/configTomacorrientes", methods=["GET", "POST"] )  
 def htomas (): 
-	if request.form is not None:
-		print ( request.form )
+    if request.form is not None:
+        print ( request.form )
 
-	return render_template ( "configTomas.html", dict=decode )  
+    return render_template ( "configTomas.html", dict=decode )  
 
 @app.route ( "/configIP", methods = ["GET", "POST"] ) 
 def ip ():
-	if request.form is not None:
-		cmd ( request.form )
+    if request.form is not None:
+        cmd ( request.form )
         
     return render_template ( "ip.html", ipArd=ipArduino, dict=decode )  
 
