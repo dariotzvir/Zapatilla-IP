@@ -31,7 +31,7 @@
             {% for i in range (1,6) %}
             <th>
                 <form action="" method="POST">
-                    <input type="submit" name="tomas+{{i}}"
+                    <input type="submit" name="toma{{i}}"
                     {% if dict ["estTomas"][i]: %}
                         value = "Off"
                     {% else: %} 

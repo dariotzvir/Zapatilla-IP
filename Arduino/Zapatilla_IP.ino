@@ -2,12 +2,31 @@
     dariotzvir@gmail.com
 */
 //Librerías:
-
 #include <SD.h>
 #include <ArduinoJson.h>
 #include <avr/wdt.h>
 
-#define N 5
+#define N 5 
+enum pantallas 
+{
+    APAGADA,
+    PRINCIPAL,
+    TMIN,
+    TMAX,
+    DHCP,
+    IPHOST,
+    IPDEF,
+    ESTSD,
+    RESET
+} oled;
+enum botones
+{
+    ONOFF = 5,
+    ENTER,
+    DER,
+    IZQ, 
+    RST
+} pul;
 
 #include "src/tomacorrientes/tomacorrientes.h"
 #include "src/pulsadores/pulsadores.h"
@@ -16,20 +35,37 @@
 #include "src/server/server.h"
 #include "src/ACS712/ACS712.h"
 
-// Schipe: No hubiese sido más práctico crear estos como un array??
+struct DATA 
+{
+    float corriente [N] = {0, 0, 0, 0, 0};
+    float tension = 220;
+    float temp, hum;
+
+    int tempMax = 125, tempMin = -40;
+    bool dhcp = 0;
+    bool estTomas [N] = {1, 1, 1, 1, 1};
+    byte mac [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+    int puerto = 80;
+    String usuario = "admin", contra = "12345";
+
+    IPAddress ipDef;
+} data;
+
 //Declaraciones de la corriente
-ACS712 _ACS [N] = { ACS712 (A8, 5.0, 1023, 100), ACS712 (A9, 5.0, 1023, 100), ACS712 (A10, 5.0, 1023, 100), ACS712 (A11, 5.0, 1023, 100), ACS712 (A12, 5.0, 1023, 100) };
-/*ACS712 toma0 (A0, 5.0, 1023, 100);
-ACS712 toma1 (A1, 5.0, 1023, 100);
-ACS712 toma2 (A2, 5.0, 1023, 100);
-ACS712 toma3 (A3, 5.0, 1023, 100);
-ACS712 toma4 (A4, 5.0, 1023, 100);*/
+ACS712 _ACS [N] = 
+{ 
+    ACS712 (A8, 5.0, 1023, 100), 
+    ACS712 (A9, 5.0, 1023, 100), 
+    ACS712 (A10, 5.0, 1023, 100), 
+    ACS712 (A11, 5.0, 1023, 100), 
+    ACS712 (A12, 5.0, 1023, 100)
+};
 
-float corriente [N] = {0,0,0,0,0};
 
-//asdwqesafsaf
 
-// Schipe: Hacelo const si es una constante (Imagino que sí) o un #define.
+float corriente [N] = { 0, 0, 0, 0, 0 };
+
+
 //Declaraciones de la tension
 float tension = 220;
 
@@ -37,9 +73,10 @@ float tension = 220;
 #define pinDHT 19
 #define tipoDHT DHT22
 
-DHT dht ( pinDHT , tipoDHT );
+DHT _dht ( pinDHT , tipoDHT );
 
-unsigned long timerDHT = 0;
+const int periodoDHT = 2000;
+unsigned long millisDHT = 0;
 float humAct, tempAct;
 
 int tempMax = 125, tempMin = -40;
@@ -47,14 +84,14 @@ int tempMaxAux, tempMinAux;
 bool flagDhcpAux;
 
 //Declaraciones tomas
-bool estTomas [N] = {1,1,1,1,1};
-tomacorrientes objTomas ( estTomas );
+bool estTomas [N] = { 1, 1, 1, 1, 1 };
+tomacorrientes _tomas ( estTomas );
 
 //Declaraciones pulsadores
-pulsadores objPul;
+pulsadores _pulsadores;
 
 //Declaraciones pantalla 
-pantallaOLED objPantalla ( corriente, estTomas );
+pantallaOLED _pantalla ( corriente, estTomas );
 
 int pantalla = 1;
 bool selec = 0;
@@ -63,30 +100,29 @@ int periodoPantalla = (int)30000;
 
 //Declaraciones Ethernet
 IPAddress ipFija ( 192, 168, 100, 150 );
-IPAddress ipDef ( 192, 168, 100, 150 );     // Schipe: Podrías poner IPAddress ipDef = ipFija; Supongo que tiene un operador asignación.
+IPAddress ipDef ( 192, 168, 100, 150 );   
 IPAddress ipStored ( 192, 168, 100, 150 ); //IP hardcodeada para cuando se resetea de fábrica
 
 bool flagDhcp = 0;
 
-int puerto = 80;        // Schipe: Lo mismo que antes, imagino que el puerto es constante así que declaralo const.
-byte mac [] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // Schipe: idem línea anterior.
+int puerto = 80;        
+byte mac [] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-server servidor ( mac, puerto, ipFija, corriente, estTomas, 
+server _server ( mac, puerto, ipFija, corriente, estTomas, 
                 tempAct, humAct, tension, tempMax, tempMin, flagDhcp );
 
 //Declaraciones MEM
 
-int pinSD = 4;                              // Schipe: const.
+const int pinSD = 4;                         
 bool flagErrorSD = 0;
 StaticJsonDocument <300> configJson;
-String usuario = "admin", clave = "12345";  // Schipe: Salvo que vayas a dar la opción de cambiarse (Imagino que sí), declaralas const.
+String usuario = "admin", clave = "12345";
 
 void setup() 
 {   
-    objPantalla.setup (); 
-    objPantalla.pantallaBoot ();
+    _pantalla.setup (); 
+    _pantalla.pantallaBoot ();
     Serial.begin ( 9600 );
-    //objmem.begin ();
     if ( !SD.begin ( pinSD ) ) 
     {
         Serial.println ( "SD falla" );
@@ -98,25 +134,15 @@ void setup()
     tempMinAux = tempMin;
     flagDhcpAux = flagDhcp;
 
+    _server.setup ();
 
-    pinMode ( 13, OUTPUT );
-    digitalWrite ( 13, HIGH );
-    servidor.setup ();
-    digitalWrite ( 13, LOW );
-
-    objTomas.begin ();
-    objPul.begin ();
-    dht.begin ();
-    //Calibra las mediciones tomando muestras
-    /*toma0.autoMidPoint ();
-    toma1.autoMidPoint ();
-    toma2.autoMidPoint ();
-    toma3.autoMidPoint ();
-    toma4.autoMidPoint ();*/
+    _tomas.begin ();
+    _pulsadores.begin ();
+    _dht.begin ();
 
     for ( int i = 0 ; i < 5 ; i++ ) _ACS [ i ].autoMidPoint ();
 
-    objPantalla.pantallaPrincipal ( tempAct, humAct, tension );
+    _pantalla.pantallaPrincipal ( tempAct, humAct, tension );
 }
 
 /**
@@ -141,7 +167,7 @@ void loop()
     funACS ();
     funPantalla ();
 
-    switch ( servidor.rutina () ) //Retorna un flag que indica si se cambió alguna variable
+    switch ( _server.rutina () ) //Retorna un flag que indica si se cambió alguna variable
     {
         case 1:
             tempMaxAux = tempMax;
@@ -151,7 +177,7 @@ void loop()
             tempMinAux = tempMin;
             guardarSD ();
         case 3:
-            for ( int i = 0 ; i < N ; i++ ) objTomas.conm ( i, estTomas [i] );
+            for ( int i = 0 ; i < N ; i++ ) _tomas.conm ( i, estTomas [i] );
             guardarSD ();
         break;
         case 4:
@@ -163,14 +189,14 @@ void loop()
 void funDHT ()
 {
   //Comprueba el tiempo entre cada muestra, las actualiza cada 2 segundos y luego comprueba si la temperatura está en los rangos de tempMax y tempMin.
-  if ( millis () - timerDHT >= 2000 )
+  if ( millis () - millisDHT >= periodoDHT )
   {
-    timerDHT = millis ();
-    tempAct = dht.readTemperature ();
-    humAct = dht.readHumidity ();
+    millisDHT = millis ();
+    tempAct = _dht.readTemperature ();
+    humAct = _dht.readHumidity ();
     //Si la temperatura está por arriba del límite y el toma está apagado lo prende, y viceversa.
-    if ( tempAct > tempMax && !estTomas[4] ) objTomas.conm (4);
-    if ( tempAct < tempMin && estTomas[4] ) objTomas.conm (4);
+    if ( tempAct > tempMax && !estTomas[4] ) _tomas.conm (4);
+    if ( tempAct < tempMin && estTomas[4] ) _tomas.conm (4);
     
   }
 }
@@ -179,7 +205,7 @@ void funPul ()
 {
     for ( int i = 0 ; i < 10 ; i++ ) //Comprueba los diez pulsadores que hay, 0 al 4 son los de los tomas el resto son del meu y reset
     {
-        if ( objPul.check (i) )
+        if ( _pulsadores.check (i) )
         {
             if ( i >= 5 ) timerPantalla = millis ();//Reinicia el timer de la pantalla así se puede ver en la pantalla lo que hacés
             switch ( i )
@@ -212,7 +238,7 @@ void funPul ()
                 break;
                 default:
                     //Pulsadores tomas
-                    objTomas.conm (i);
+                    _tomas.conm (i);
                     guardarSD ();
                 break;
             }
@@ -232,7 +258,7 @@ void logicaEnter ()
             if ( pantalla == 4 ) flagDhcp = flagDhcpAux;
             
             guardarSD ();
-            objPul.flagTimer = 0; //Desactiva el que se pueda dejar el botón apretado para que el valor suba solo en los botones de la der e izq
+            _pulsadores.flagTimer = 0; //Desactiva el que se pueda dejar el botón apretado para que el valor suba solo en los botones de la der e izq
         }
         else //Si no se estaba modificando una variable se reinician las variables para actualizarlas
         {
@@ -240,7 +266,7 @@ void logicaEnter ()
             tempMinAux = tempMin;
             flagDhcpAux = flagDhcp;
             
-            objPul.flagTimer = 1; //Activa el que se pueda dejar el botón apretado para que el valor suba solo en los botones de la der e izq
+            _pulsadores.flagTimer = 1; //Activa el que se pueda dejar el botón apretado para que el valor suba solo en los botones de la der e izq
         }
         selec = !selec; 
     }
@@ -296,16 +322,16 @@ void funPantalla ()
     switch ( pantalla )
     {
         case 0: 
-            objPantalla.pantallaApagada (); //Pantalla apagada
+            _pantalla.pantallaApagada (); //Pantalla apagada
         break;
         case 1:
-            objPantalla.pantallaPrincipal ( tempAct, humAct, tension ); //Pantalla del menu principal, los vectores se pasan con el constructor
+            _pantalla.pantallaPrincipal ( tempAct, humAct, tension ); //Pantalla del menu principal, los vectores se pasan con el constructor
         break;
         case 8:
-            objPantalla.pantallaReset (); //Pantalla de reset, no necesita otra cosa
+            _pantalla.pantallaReset (); //Pantalla de reset, no necesita otra cosa
         break;
         default:
-            objPantalla.menu ( pantalla, selec, tempMaxAux, tempMinAux, ipFija, Ethernet.localIP (), flagErrorSD, flagDhcpAux ); //Todaas las pantallas del menu en funcion de que pantalla se pasa
+            _pantalla.menu ( pantalla, selec, tempMaxAux, tempMinAux, ipFija, Ethernet.localIP (), flagErrorSD, flagDhcpAux ); //Todaas las pantallas del menu en funcion de que pantalla se pasa
         break;
     }
 }
@@ -315,7 +341,7 @@ void resetEstPantalla ()
     //Resetea variables relacionadas a la pantalla si se salió del menu sin guardar algo se usa solo para cuando apagás la pantalla
     //Mientras está en un menú
     selec = 0;
-    objPul.flagTimer = 0;
+    _pulsadores.flagTimer = 0;
     tempMaxAux = tempMax;
     tempMinAux = tempMin;
     flagDhcpAux = flagDhcp;
@@ -387,16 +413,15 @@ void cargarSD ()
         {
             tempMin = configJson ["tempMin"];
             if ( tempMin > tempMax || tempMin < -40 ) tempMin = -40;
-            //configJson ["tempMin"] <= tempMax && configJson ["tempMin"] >= -40
         }
         else tempMin = tempMax;
 
-        if ( configJson.containsKey ( "estado" ) /*&& sizeOf ( configJson ["estado"] ) == 5*/ )
+        if ( configJson.containsKey ( "estado" )  )
         {
             for ( int i = 0 ; i < N ; i++ ) 
             {
                 estTomas [i] = configJson ["estado"][i];
-                objTomas.conm ( i, estTomas [i] );
+                _tomas.conm ( i, estTomas [i] );
             }
         }
 
@@ -442,12 +467,5 @@ void crearSDdefecto ()
 
 void funACS ()
 {
-    //Devuelve la corriente en milli Amper de toma
-    /*corriente [0] = toma0.mA_AC ()/1000.0;
-    corriente [1] = toma1.mA_AC ()/1000.0;
-    corriente [2] = toma2.mA_AC ()/1000.0;
-    corriente [3] = toma3.mA_AC ()/1000.0;
-    corriente [4] = toma4.mA_AC ()/1000.0;*/
-
     for ( int i = 0 ; i < 5 ; i++ ) corriente [i] = _ACS [ i ].mA_AC ()/1000.0;
 }

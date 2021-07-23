@@ -51,23 +51,27 @@ void server::setup ()
 
 int server::rutina ()
 {
+    cmdCliente.flush ();
     cmdCliente = available ();
-    if ( cmdCliente && cmdCliente.connected () )
-    {
-        char c;
+    
+    if ( cmdCliente ) while ( cmdCliente.connected () )
         if ( cmdCliente.available () )
         {
-            c = cmdCliente.read ();
-            Serial.print ( c );
-            if ( peticion.length () < 100 ) peticion += c;
+            char c;
+            if ( cmdCliente.available () )
+            {
+                c = cmdCliente.read ();
+                Serial.print ( c );
+                if ( peticion.length () < 100 ) peticion += c;
+            }
+            if ( !cmdCliente.available () || c == '\n' ) 
+            {
+                retorno ();
+                delay (1);
+                cmdCliente.stop ();
+                break;
+            }
         }
-        if ( !cmdCliente.available () || c == '\n' ) 
-        {
-            retorno ();
-            delay (1);
-            cmdCliente.stop ();
-        }
-    }
     
     return flagGuardado;
 }
