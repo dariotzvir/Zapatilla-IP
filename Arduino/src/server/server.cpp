@@ -119,7 +119,7 @@ String server::lecturaServer ( int index )
             aux2 += linea;
         } 
         aux2 += ']';
-        Serial.println ( aux2 );
+        //Serial.println ( aux2 );
 
         aux += aux2 + coma + linea;
 
@@ -131,7 +131,7 @@ String server::lecturaServer ( int index )
             aux2 += linea;
         } 
         aux2 += ']';
-        Serial.println ( aux2 );
+        //Serial.println ( aux2 );
 
         aux += aux2 + linea;
 

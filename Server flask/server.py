@@ -50,19 +50,21 @@ def home ():
 
 @app.route ( "/configTemp", methods=["GET", "POST"] ) 
 def temp ():
+    if len ( request.form ):
+        cmd ( request.form )
 
     return render_template ( "configTemp.html", dict=decode ) 
 
 @app.route ( "/configTomacorrientes", methods=["GET", "POST"] )  
 def htomas (): 
-    if request.form is not None:
-        print ( request.form )
+    if len ( request.form ):
+        cmd ( request.form )
 
     return render_template ( "configTomas.html", dict=decode )  
 
 @app.route ( "/configIP", methods = ["GET", "POST"] ) 
 def ip ():
-    if request.form is not None:
+    if len ( request.form ):
         cmd ( request.form )
         
     return render_template ( "ip.html", ipArd=ipArduino, dict=decode )  
