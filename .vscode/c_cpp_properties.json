@@ -19,9 +19,12 @@
                 "D:\\Program Files\\Arduino\\hardware\\arduino\\avr\\variants\\mega",
                 "D:\\Program Files\\Arduino\\libraries\\SD\\src",
                 "D:\\dario\\Documents\\Arduino\\libraries\\ArduinoJson-6.17.3\\src",
-                "D:\\Program Files\\Arduino\\hardware\\arduino\\avr\\libraries\\SPI\\src",
                 "D:\\Program Files\\Arduino\\hardware\\arduino\\avr\\libraries\\Wire\\src",
+                "D:\\dario\\Documents\\Arduino\\libraries\\Adafruit_SSD1306",
+                "D:\\dario\\Documents\\Arduino\\libraries\\Adafruit-GFX-Library-master",
+                "D:\\Program Files\\Arduino\\hardware\\arduino\\avr\\libraries\\SPI\\src",
                 "D:\\Program Files\\Arduino\\libraries\\Ethernet\\src",
+                "D:\\dario\\Documents\\Arduino\\libraries\\Adafruit_BusIO",
                 "d:\\program files\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
                 "d:\\program files\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include-fixed",
                 "d:\\program files\\arduino\\hardware\\tools\\avr\\avr\\include"
