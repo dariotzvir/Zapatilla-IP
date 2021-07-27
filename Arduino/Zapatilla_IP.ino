@@ -41,16 +41,18 @@ int periodoPan = (int)30000;
 bool flagErrorSD = 0;
 
 void setup() 
-{   
+{                   
     Serial.begin ( 9600 );
     data.ipDef = ipStored;
-
     if ( !SD.begin ( pin.pinSD ) ) 
     {
         Serial.println ( "SD falla" );
         flagErrorSD = 1;
     }
     else cargarSD ();
+
+    server _aux ( data ); //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
+    _server = _aux;       //queda inicializado con el puerto con el valor determinado (80)
 
     _pantalla.setup (); 
     _pantalla.pantallaBoot ();
@@ -74,20 +76,35 @@ void loop()
 
     switch ( _server.rutina () ) //Retorna un flag que indica si se cambió alguna variable
     {
+        case 0:
+            break;
+
+        guardarSD ();
+        
         case 1:
+            guardarSD ();
             _pantalla.bufferTempMax = data.tempMax;
-            guardarSD ();
-        break;
+            break;
         case 2:
+            guardarSD ();
             _pantalla.bufferTempMin = data.tempMin;
-            guardarSD ();
+            break;
         case 3:
-            for ( int i = 0 ; i < N ; i++ ) _tomas.conm ( i, data.estTomas [i] );
+            for ( int i=0; i<5; i++ ) _tomas.conm ( i, data.estTomas [i] );
             guardarSD ();
-        break;
+            break;
         case 4:
+            break;
+        case 5:
             guardarSD ();
-        break;
+            _server.load ();
+            break;
+        case 6:
+            Serial.println ( data.puerto );
+            guardarSD ();
+            wdt_enable( WDTO_250MS ); //Llama al watchdog
+            while (1);
+            break;
     }
 }
 
@@ -125,30 +142,40 @@ void funPul ()
                 //ON/OFF
                 _pantalla.logicaOnOff ();
                 _pulsadores.flagTimer = 0;
-            break;
+                break;
             case 1:
                 //Ent
-                if ( _pantalla.logicaEnter () ) 
+                switch ( _pantalla.logicaEnter () )
                 {
-                    guardarSD ();
-                    _pulsadores.flagTimer = 0;
+                    case 0:
+                        _pulsadores.flagTimer = 1;
+                        break;
+                    case 3:
+                        guardarSD ();
+                        _pulsadores.flagTimer = 0;
+                        _server.load ();
+                        break;
+                    default:
+                        guardarSD ();
+                        _pulsadores.flagTimer = 0;
+                        _server.load ();
+                        break;
                 }
-                else _pulsadores.flagTimer = 1;
-            break;
+                break;
             case 2:
                 //Der
                 _pantalla.logicaDer ();
-            break;
+                break;
             case 3:
                 //Izq
                 _pantalla.logicaIzq ();
-            break;
+                break;
             case 4:
                 //Reset
                 _pantalla.pantallaSelec = RESET; //Selecciona la pantalla de reset especial
                 funPantalla ();
                 reset ();
-            break;
+                break;
         }
     }
 }
@@ -172,16 +199,16 @@ void funPantalla ()
     {
         case APAGADA: 
             _pantalla.pantallaApagada (); //Pantalla apagada
-        break;
+            break;
         case PRINCIPAL:
             _pantalla.pantallaPrincipal (); //Pantalla del menu principal, los vectores se pasan con el constructor
-        break;
+            break;
         case RESET:
             _pantalla.pantallaReset (); //Pantalla de reset, no necesita otra cosa
-        break;
+            break;
         default:
             _pantalla.menu ( Ethernet.localIP (), flagErrorSD ); //Todaas las pantallas del menu en funcion de que pantalla se pasa
-        break;
+            break;
     }
 }
 
@@ -204,6 +231,7 @@ void guardarSD ()
         configJson ["dhcp"] = data.dhcp;
         configJson ["usuario"] = data.usuario;
         configJson ["clave"] = data.contra;
+        configJson ["puerto"] = data.puerto;
 
         for ( int i = 0 ; i < N ; i++ ) configJson ["estado"][i] = data.estTomas [i];
 
@@ -230,6 +258,7 @@ void cargarSD ()
             for ( int i = 0 ; i < 4 ; i++ ) aux [i] = configJson ["ipDef"][i];
             data.ipDef = aux;
         }
+        if ( configJson.containsKey ( "puerto" ) ) data.puerto = configJson ["puerto"];
 
         if ( configJson.containsKey ( "dhcp" ) ) data.dhcp = configJson ["dhcp"];
 
@@ -278,6 +307,7 @@ void crearSDdefecto ()
     configJson ["tempMax"] = 125;
     configJson ["tempMin"] = -40;
     configJson ["dhcp"] = 1;
+    configJson ["puerto"] = 80;
 
     configJson ["usuario"] = "admin";
     configJson ["clave"] = "12345";

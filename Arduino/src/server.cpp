@@ -1,16 +1,6 @@
 #include "headers/server.h"
 
 EthernetClient cmdCliente;
-String fueraRango = "Fuera de rango";
-String guardado = "Guardado";
-String error = "&";
-
-bool comprobarTempBoundaries ( String &peticion, int temp, int index );
-int leerTemp ( String &peticion, int index );
-String encodeTomas ( bool *estTomas, float *corriente );
-String encodeMac ( byte *mac );
-const char coma = ',', linea = '\n';
-String encodeIp ( IPAddress &ip );
 
 server::server ( DATA &data ): EthernetServer ( data.puerto )
 {
@@ -18,6 +8,17 @@ server::server ( DATA &data ): EthernetServer ( data.puerto )
 }
 
 void server::setup ()
+{
+    Ethernet.begin ( data->mac, data->ipDef );
+    
+    //if ( Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() != LinkON ) errorEthernet = 1;
+
+    load ();
+
+    begin ();
+}
+
+void server::load ()
 {
     Ethernet.begin ( data->mac, data->ipDef );
     
@@ -33,9 +34,6 @@ void server::setup ()
             data->dhcp = 0;
         }
     }
-        
-
-    begin ();
 }
 
 int server::rutina ()
@@ -53,7 +51,7 @@ int server::rutina ()
                 Serial.print ( c );
                 if ( peticion.length () < 100 ) peticion += c;
             }
-            if ( !cmdCliente.available () || c == '\n' ) 
+            if ( ( !cmdCliente.available () || c == '\n' ) )
             {
                 retorno ();
                 delay (1);
@@ -78,71 +76,53 @@ void server::retorno ()
     cmdCliente.println ( "Content-Type: text/plain" );
     cmdCliente.println ( "Connection: close" );
     cmdCliente.println (); 
-    cmdCliente.println ( devolucion == "&" ? "Peticion erronea" : devolucion );
+    cmdCliente.println ( devolucion );
 
     peticion = "";
 }
 
 String server::lecturaServer ( int index )
 {
+    String retorno = ERRORPET;
     index += 4; //Desplaza el cursor al final del sector de string ya sea /lec o /cmd, el indice primero corresponde al "/" al sumarle 4 pasas al "?"
 
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
 
     if ( peticion.substring ( index, index + 5 ).compareTo ( "?todo" ) == 0 ) 
     {
-        String aux = "{\n";
+        StaticJsonDocument <300> jsonRequest;
+        String aux = "";
 
-        aux += "\"tempMax\" : " + String (data->tempMax) + coma + linea;
-        aux += "\"tempMin\" : " + String (data->tempMin) + coma + linea;
-        aux += "\"tempAct\" : " + String (data->temp) + coma + linea;
-        aux += "\"humAct\" : " + String (data->hum) + coma + linea;
+        jsonRequest ["tempMax"] = data->tempMax;
+        jsonRequest ["tempmin"] = data->tempMin;
+        jsonRequest ["tempAct"] = data->temp;
+        jsonRequest ["humAct"] = data->hum;
+        jsonRequest ["tension"] = data->tension;
+        jsonRequest ["dhcp"] = data->dhcp;
+        jsonRequest ["ipDef"] = data->puerto;
 
-        aux += "\"tension\" : " + String (data->tension) + coma + linea;
-        aux += "\"dhcp\" : " + String (data->dhcp) + coma + linea;
+        jsonRequest ["mac"] = encodeMac ( data->mac );
+        jsonRequest ["ipDef"] = encodeIp ( data->ipDef );
 
-        aux += "\"mac\" : \""  + String ( encodeMac ( data->mac ) ) + "\"" + coma + linea;
-        aux += "\"ipDef\" : \"" + String ( encodeIp ( data->ipDef ) ) + "\"" + coma + linea;
+        for ( int i=0; i<N; i++ )jsonRequest ["estTomas"][i] = data->estTomas [i];
+        for ( int i=0; i<N; i++ )jsonRequest ["corriente"][i] = data->corriente [i];
 
-        String aux2 = "\"estTomas\" : [\n";
-        for ( int i = 0 ; i < 5 ; i++ )
-        {
-            aux2 += String ( data->estTomas [i] );
-            if ( i != 4 ) aux2 += coma;
-            aux2 += linea;
-        } 
-        aux2 += ']';
-        //Serial.println ( aux2 );
-
-        aux += aux2 + coma + linea;
-
-        aux2 = "\"corriente\" : [\n";
-        for ( int i = 0 ; i < 5 ; i++ )
-        {
-            aux2 += String ( data->corriente [i] );
-            if ( i != 4 ) aux2 += coma;
-            aux2 += linea;
-        } 
-        aux2 += ']';
-        //Serial.println ( aux2 );
-
-        aux += aux2 + linea;
-
-        aux += '}';
-        return aux;
+        serializeJsonPretty ( jsonRequest, aux );
+        retorno = aux;
     }
-    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmax" ) == 0 ) return ( String (data->tempMax) + 'C' );
-    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmin" ) == 0 ) return ( String (data->tempMin) + 'C' );
-    if ( peticion.substring ( index, index + 5 ).compareTo ( "?temp" ) == 0 ) return ( String (data->temp) + 'C' );
-    if ( peticion.substring ( index, index + 4 ).compareTo ( "?hum" ) == 0 ) return ( String (data->hum) + '%' );
-    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tension" ) == 0 ) return ( String (data->tension) + 'V' );
-    if ( peticion.substring ( index, index + 5 ).compareTo ( "?dhcp" ) == 0 ) return ( String ((data->dhcp) ? "Si" : "No") );
+    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmax" ) == 0 ) retorno =  data->tempMax + 'C';
+    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmin" ) == 0 ) retorno =  data->tempMin + 'C';
+    if ( peticion.substring ( index, index + 5 ).compareTo ( "?temp" ) == 0 ) retorno =  data->temp + 'C';
+    if ( peticion.substring ( index, index + 4 ).compareTo ( "?hum" ) == 0 ) retorno =  data->hum + '%' ;
+    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tension" ) == 0 ) retorno =  data->tension + 'V' ;
+    if ( peticion.substring ( index, index + 5 ).compareTo ( "?dhcp" ) == 0 ) retorno = (data->dhcp ? "Si" : "No");
+    if ( peticion.substring ( index, index + 7 ).compareTo ( "?puerto" ) == 0 ) retorno = data->puerto;
 
-    if ( peticion.substring ( index, index + 6 ).compareTo ( "?ipdef" ) == 0 ) return encodeIp (data->ipDef);
-    if ( peticion.substring ( index, index + 4 ).compareTo ( "?mac" ) == 0 ) return encodeMac (data->mac);
-    if ( peticion.substring ( index, index + 6 ).compareTo ( "?tomas" ) == 0 ) return encodeTomas ( data->estTomas, data->corriente );
+    if ( peticion.substring ( index, index + 6 ).compareTo ( "?ipdef" ) == 0 ) retorno = encodeIp (data->ipDef);
+    if ( peticion.substring ( index, index + 4 ).compareTo ( "?mac" ) == 0 ) retorno = encodeMac (data->mac);
+    if ( peticion.substring ( index, index + 6 ).compareTo ( "?tomas" ) == 0 ) retorno =  encodeTomas ( data->estTomas, data->corriente );
     
-    return error;
+    return retorno;
 }
 
 String server::comandoServer ( int index )
@@ -151,13 +131,53 @@ String server::comandoServer ( int index )
 
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
 
+    if ( peticion.substring ( index, index + 4 ).compareTo ( "?mac" ) == 0 ) //GET /cmd?mac=DE+AD+BE+EF+FE+ED HTTP/1.1
+    {
+        if ( peticion [ index + 4 ] != '=' || peticion [ index + 22 ]) return ERRORPET;
+    }
+    else if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmax" ) == 0 ) //GET /cmd?tempmin=100 HTTP/1.1
+    {
+        int temp = leerTemp ( peticion, index );
+        if ( temp == 126 ) return ERRORPET;
+        if ( temp < data->tempMin || temp > 125 ) return FUERARANGO;
+
+        data->tempMax = temp;
+        flagGuardado = 1;
+        return GUARDADO;
+    }
+    else if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmin" ) == 0 )  //GET /cmd?tempmin=-11 HTTP/1.1
+    {
+        int temp = leerTemp ( peticion, index );
+        if ( temp == 126 ) return ERRORPET;
+        if ( temp > data->tempMax || temp < -40 ) return FUERARANGO;
+
+        data->tempMin = temp;
+        flagGuardado = 2;
+        return GUARDADO;
+    }
+    else if ( peticion.substring ( index, index + 6 ).compareTo ( "?tomas" ) == 0 ) //GET /cmd?tomas+1=0 HTTP/1.1
+    {                                                                               //012345678901234567890123456
+        if ( peticion [ index + 6 ] != '+' || peticion [ index + 8 ] != '=' || peticion [ index + 10 ] != ' ' ) return ERRORPET;
+
+        int toma = peticion [index + 7] - 48;
+        int estado = peticion [index + 9] - 48;
+
+        if ( toma < 1 || toma > 5 ) return FUERARANGO;
+        if ( estado == 1 || estado == 0 )
+        {
+            data->estTomas [toma-1] = estado;
+            flagGuardado = 3;
+            return GUARDADO;
+        }
+        
+    }
     if ( peticion.substring ( index, index + 6 ).compareTo ( "?ipdef" ) == 0 ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
     {
-        if ( peticion [ index + 6 ] != '=' ) return error;
+        if ( peticion [ index + 6 ] != '=' ) return ERRORPET;
         int fin = peticion.indexOf ( "HTTP" )-1;
 
         IPAddress aux;
-        if ( aux.fromString ( peticion.substring ( index+7, fin ) ) == 0 ) return fueraRango;
+        if ( aux.fromString ( peticion.substring ( index+7, fin ) ) == 0 ) return FUERARANGO;
 
         data->ipDef = aux;
 
@@ -167,75 +187,45 @@ String server::comandoServer ( int index )
             flagGuardado = 4;
         }
 
-        return guardado;
+        return GUARDADO;
     }
     if ( peticion.substring ( index, index + 5 ).compareTo ( "?dhcp" ) == 0 ) //GET /cmd?dhcp=1 HTTP/1.1
     {
-        if ( peticion [ index + 5 ] != '=' ||  peticion [ index + 7 ] != ' ' ) return error;
-        if (  peticion [ index + 6 ] != '1' &&  peticion [ index + 6 ] != '0' ) return error;
+        if ( peticion [ index + 5 ] != '=' || peticion [ index + 7 ] != ' ' ) return ERRORPET;
+        if (  peticion [ index + 6 ] != '1' &&  peticion [ index + 6 ] != '0' ) return ERRORPET;
 
-        data->dhcp = peticion [ index + 6 ] - 48;
+        int aux = peticion [ index + 6 ] - 48;
 
-        if ( data->dhcp == 0 ) Ethernet.begin ( data->mac, data->ipDef );
-        else if ( Ethernet.begin ( data->mac ) == 0 ) 
+        if ( aux == 0 || aux == 1 ) data->dhcp = aux;
+
+        flagGuardado = 6;
+
+        if ( !data->dhcp )return String ( "Nueva IP:" + data->ipDef );
+        else return GUARDADO;
+    }
+    if ( peticion.substring ( index, index + 7 ).compareTo ( "?puerto" ) == 0 ) //GET /cmd?puerto=10 HTTP/1.1
+    {
+        if ( peticion [ index + 7 ] != '=' ) return ERRORPET;
+
+        int fin = peticion.indexOf ( "HTTP" )-1;
+        String aux = peticion.substring ( index + 8, fin );
+ 
+        for ( int i=0; i<aux.length (); i++ ) 
         {
-            Ethernet.begin ( data->mac, data->ipDef );
-            return ( F( "Configuracion de DHCP fallida, se mantiene el host" ) );
+            Serial.println (aux[i]);
+            if ( !(aux [i] >= '0' && aux [i] <= '9') ) return ERRORPET;
         }
 
-        //Serial.println ( Ethernet.localIP () );
-        return String ( "Nueva IP:" + Ethernet.localIP () );
-    }
-    if ( peticion.substring ( index, index + 4 ).compareTo ( "?mac" ) == 0 ) //GET /cmd?mac=DE+AD+BE+EF+FE+ED HTTP/1.1
-    {
-        if ( peticion [ index + 4 ] != '=' || peticion [ index + 22 ]) return error;
-    }
-    else if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmax" ) == 0 ) //GET /cmd?tempmin=100 HTTP/1.1
-    {
-        int temp = leerTemp ( peticion, index );
-        if ( temp == 126 ) return error;
-        if ( temp < data->tempMin || temp > 125 ) return fueraRango;
+        data->puerto = aux.toInt (); 
 
-        data->tempMax = temp;
-        flagGuardado = 1;
-        return guardado;
-    }
-    else if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmin" ) == 0 )  //GET /cmd?tempmin=-11 HTTP/1.1
-    {
-        int temp = leerTemp ( peticion, index );
-        if ( temp == 126 ) return error;
-        if ( temp > data->tempMax || temp < -40 ) return fueraRango;
+        flagGuardado = 6;
 
-        data->tempMin = temp;
-        flagGuardado = 2;
-        return guardado;
+        return String ( "Nueva puerto:" +  String (data->puerto) + "\nReiniciando equipo" );
     }
-    else if ( peticion.substring ( index, index + 6 ).compareTo ( "?tomas" ) == 0 ) //GET /cmd?tomas+1=0 HTTP/1.1
-    {                                                                               //012345678901234567890123456
-        if ( peticion [ index + 6 ] != '+' || peticion [ index + 8 ] != '=' || peticion [ index + 10 ] != ' ' ) return error;
-
-        int toma = peticion [index + 7] - 48;
-        int estado = peticion [index + 9] - 48;
-
-        if ( toma < 1 || toma > 5 ) return fueraRango;
-        if ( estado == 1 )
-        {
-            data->estTomas [toma] = 1;
-            flagGuardado = 3;
-            return guardado;
-        }
-        if ( estado == 0 )
-        {
-            data->estTomas [toma] = 0;
-            flagGuardado = 3;
-            return guardado;
-        }
-        
-    }
-    return error;
+    return ERRORPET;
 }
 
-int leerTemp ( String &peticion, int index )
+int server::leerTemp ( String &peticion, int index )
 {
     int temp;
     String aux = peticion.substring ( index + 9, index + 12 );
@@ -251,7 +241,7 @@ int leerTemp ( String &peticion, int index )
     return temp;
 }
 
-bool comprobarTempBoundaries ( String &peticion, int temp, int index )
+bool server::comprobarTempBoundaries ( String &peticion, int temp, int index )
 {
     if ( peticion [ index + 8 ] != '=' ) return 0;
     if ( temp >= 0 && temp < 10 && peticion [ index + 10 ] != ' ' ) return 0;
@@ -265,7 +255,7 @@ bool comprobarTempBoundaries ( String &peticion, int temp, int index )
     return 1;
 }
 
-String encodeMac ( byte *mac )
+String server::encodeMac ( byte *mac )
 {
     String aux = "";
     for ( int i = 0 ; i < 6 ; i++ ) 
@@ -277,7 +267,7 @@ String encodeMac ( byte *mac )
     return aux;
 }
 
-String encodeTomas ( bool *estTomas, float *corriente )
+String server::encodeTomas ( bool *estTomas, float *corriente )
 {
     String aux = "";
     for ( int i = 0 ; i < 5 ; i++ ) 
@@ -290,4 +280,4 @@ String encodeTomas ( bool *estTomas, float *corriente )
     return aux;
 }
 
-String encodeIp ( IPAddress &aux ) { return ( String ( aux [0] ) + '.' + String ( aux [1] ) + '.' + String ( aux [2] ) + '.' + String ( aux [3] ) ); }
+String server::encodeIp ( IPAddress &aux ) { return ( String ( aux [0] ) + '.' + String ( aux [1] ) + '.' + String ( aux [2] ) + '.' + String ( aux [3] ) ); }

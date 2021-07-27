@@ -12,11 +12,15 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <ArduinoJson.h>
 #include "util.h"
 
 #ifndef N
 #define N 5
 #endif
+#define FUERARANGO "Fuera de rango"
+#define ERRORPET "Peticion erronea"
+#define GUARDADO "Guardado"
 
 class server: EthernetServer
 {
@@ -24,14 +28,22 @@ class server: EthernetServer
         server ( DATA & );
         void setup ();
         int rutina ();
+        void load ();
     private:
         DATA *data;
-        int flagGuardado = 0;
+        int flagGuardado = 0;                               
         String peticion;
 
         void retorno ();
+
         String comandoServer ( int );
         String lecturaServer ( int );
+        String encodeIp ( IPAddress & );
+        String encodeTomas ( bool *, float * );
+        String encodeMac ( byte * );
+
+        int leerTemp ( String &, int );
+        bool comprobarTempBoundaries ( String &, int, int );
 };
 
 

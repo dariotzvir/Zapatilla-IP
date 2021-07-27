@@ -191,6 +191,8 @@ void pantallaOLED::menu ( IPAddress localHost, bool flagSD )
             setTextSize ( 1 );
             setCursor ( 4 , 30 );
             print ( localHost );
+            print ( ":" );
+            print ( data->puerto );
 
             setTextSize ( 2 );
 
@@ -201,6 +203,8 @@ void pantallaOLED::menu ( IPAddress localHost, bool flagSD )
             setTextSize ( 1 );
             setCursor ( 4 , 30 );
             print ( data->ipDef );
+            print ( ":" );
+            print ( data->puerto );
 
             setTextSize ( 2 );
 
@@ -272,7 +276,7 @@ void pantallaOLED::pantallaApagada ()
     ssd1306_command (SSD1306_DISPLAYOFF);
 }
 
-bool pantallaOLED::logicaEnter ()
+int pantallaOLED::logicaEnter ()
 {
     bool retorno = 0;
     if ( pantallaSelec < TMIN ) pantallaSelec = 2; //Si está en una pantalla que no sea de menú cambia a una que lo es
@@ -280,10 +284,22 @@ bool pantallaOLED::logicaEnter ()
     {
         if ( flagSelec ) //Si ya se estaba modificando una variable se guarda el valor deseado desde la variable buffer a la original y se guarda en la SD
         {
-            if ( pantallaSelec == TMIN ) data->tempMin = bufferTempMin;
-            if ( pantallaSelec == TMAX ) data->tempMax = bufferTempMax;
-            if ( pantallaSelec == DHCP ) data->dhcp = bufferDHCP;
-            retorno = 1;
+            if ( pantallaSelec == TMIN && data->tempMin != bufferTempMin ) 
+            {
+                data->tempMin = bufferTempMin;
+                retorno = 2;
+            }
+            else if ( pantallaSelec == TMAX && data->tempMax != bufferTempMax )
+            {
+                retorno = 2;
+                data->tempMax = bufferTempMax;
+            } 
+            else if ( pantallaSelec == DHCP && data->dhcp != bufferDHCP ) 
+            {
+                retorno = 3;
+                data->dhcp = bufferDHCP;
+            }
+            else retorno = 1;
         }
         else //Si no se estaba modificando una variable se reinician las variables para actualizarlas
         {

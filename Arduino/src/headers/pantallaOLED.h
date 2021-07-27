@@ -26,7 +26,7 @@ class pantallaOLED: public Adafruit_SSD1306
         void logicaDer ();
         void logicaIzq ();
         void logicaOnOff ();
-        bool logicaEnter ();
+        int logicaEnter ();
 
 
         int pantallaSelec = 0;
