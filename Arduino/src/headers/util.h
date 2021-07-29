@@ -39,7 +39,7 @@ struct DATA
     float temp, hum;
 
     int tempMax = 125, tempMin = -40;
-    String usuario = "admin", contra = "12345";
+    String usuario = "admin", clave = "12345";
 
     bool dhcp = 0;
     int puerto = 80;

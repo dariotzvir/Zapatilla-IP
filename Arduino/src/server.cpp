@@ -22,8 +22,6 @@ void server::load ()
 {
     Ethernet.begin ( data->mac, data->ipDef );
     
-    //if ( Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() != LinkON ) errorEthernet = 1;
-
     if ( data->dhcp == 1 ) 
     {
         Serial.println ( "DHCP" );
@@ -34,13 +32,18 @@ void server::load ()
             data->dhcp = 0;
         }
     }
+
+    contErrorDHCP = 0;
+    millisDHCP = millis ();
 }
 
 int server::rutina ()
 {
+    checkDHCP ();
     cmdCliente.flush ();
     cmdCliente = available ();
-    
+    char tipoPeticion = '\0';
+
     if ( cmdCliente ) while ( cmdCliente.connected () )
         if ( cmdCliente.available () )
         {
@@ -48,16 +51,19 @@ int server::rutina ()
             if ( cmdCliente.available () )
             {
                 c = cmdCliente.read ();
+                if ( tipoPeticion == '\0' ) tipoPeticion = toupper (c);
+
                 Serial.print ( c );
                 if ( peticion.length () < 100 ) peticion += c;
             }
-            if ( ( !cmdCliente.available () || c == '\n' ) )
+            if ( tipoPeticion == 'G' && ( !cmdCliente.available () || c == '\n' ) )
             {
                 retorno ();
                 delay (1);
                 cmdCliente.stop ();
                 break;
             }
+            else if ( tipoPeticion == 'P' && ( !cmdCliente.available () || c == '\n' ) )//POST, TODO
         }
     
     return flagGuardado;
@@ -67,8 +73,8 @@ void server::retorno ()
 {
     String devolucion = "Peticion erronea";
 
-    if ( peticion.indexOf ( "/lec" ) > 0 ) devolucion = lecturaServer ( peticion.indexOf ( "/lec" ) );
-    else if ( peticion.indexOf ( "/cmd" ) > 0 ) devolucion = comandoServer ( peticion.indexOf ( "/cmd" ) );
+    if ( peticion.indexOf ( "/lec" ) > 0 && checkLogin () ) devolucion = lecturaServer ( peticion.indexOf ( "/lec" ) );
+    else if ( peticion.indexOf ( "/cmd" ) > 0 && checkLogin () ) devolucion = comandoServer ( peticion.indexOf ( "/cmd" ) );
     else if ( peticion.indexOf ( " / " ) > 0 ) devolucion = "Zapatilla IP OK";
     //Serial.println ( "Devolviendo" );
 
@@ -81,6 +87,11 @@ void server::retorno ()
     peticion = "";
 }
 
+bool server::checkLogin ()
+{
+
+}
+
 String server::lecturaServer ( int index )
 {
     String retorno = ERRORPET;
@@ -88,7 +99,7 @@ String server::lecturaServer ( int index )
 
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
 
-    if ( peticion.substring ( index, index + 5 ).compareTo ( "?todo" ) == 0 ) 
+    if ( checkStr ( index, "?todo" ) ) 
     {
         StaticJsonDocument <300> jsonRequest;
         String aux = "";
@@ -110,17 +121,17 @@ String server::lecturaServer ( int index )
         serializeJsonPretty ( jsonRequest, aux );
         retorno = aux;
     }
-    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmax" ) == 0 ) retorno =  data->tempMax + 'C';
-    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmin" ) == 0 ) retorno =  data->tempMin + 'C';
-    if ( peticion.substring ( index, index + 5 ).compareTo ( "?temp" ) == 0 ) retorno =  data->temp + 'C';
-    if ( peticion.substring ( index, index + 4 ).compareTo ( "?hum" ) == 0 ) retorno =  data->hum + '%' ;
-    if ( peticion.substring ( index, index + 8 ).compareTo ( "?tension" ) == 0 ) retorno =  data->tension + 'V' ;
-    if ( peticion.substring ( index, index + 5 ).compareTo ( "?dhcp" ) == 0 ) retorno = (data->dhcp ? "Si" : "No");
-    if ( peticion.substring ( index, index + 7 ).compareTo ( "?puerto" ) == 0 ) retorno = data->puerto;
+    if ( checkStr ( index, "?tempmax" ) ) retorno =  data->tempMax + 'C';
+    if ( checkStr ( index, "?tempmin" ) ) retorno =  data->tempMin + 'C';
+    if ( checkStr ( index, "?temp " ) ) retorno =  data->temp + 'C';
+    if ( checkStr ( index, "?hum" ) ) retorno =  data->hum + '%' ;
+    if ( checkStr ( index, "?tension" ) ) retorno =  data->tension + 'V' ;
+    if ( checkStr ( index, "?dhcp" ) ) retorno = (data->dhcp ? "Si" : "No");
+    if ( checkStr ( index, "?puerto" ) ) retorno = data->puerto;
 
-    if ( peticion.substring ( index, index + 6 ).compareTo ( "?ipdef" ) == 0 ) retorno = encodeIp (data->ipDef);
-    if ( peticion.substring ( index, index + 4 ).compareTo ( "?mac" ) == 0 ) retorno = encodeMac (data->mac);
-    if ( peticion.substring ( index, index + 6 ).compareTo ( "?tomas" ) == 0 ) retorno =  encodeTomas ( data->estTomas, data->corriente );
+    if ( checkStr ( index, "?ipdef" ) ) retorno = encodeIp (data->ipDef);
+    if ( checkStr ( index, "?mac" ) ) retorno = encodeMac (data->mac);
+    if ( checkStr ( index, "?tomas" ) ) retorno =  encodeTomas ( data->estTomas, data->corriente );
     
     return retorno;
 }
@@ -131,13 +142,15 @@ String server::comandoServer ( int index )
 
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
 
-    if ( peticion.substring ( index, index + 4 ).compareTo ( "?mac" ) == 0 ) //GET /cmd?mac=DE+AD+BE+EF+FE+ED HTTP/1.1
+    if ( checkStr ( index, "?mac" ) ) //GET /cmd?mac=DE+AD+BE+EF+FE+ED HTTP/1.1
     {
         if ( peticion [ index + 4 ] != '=' || peticion [ index + 22 ]) return ERRORPET;
+
     }
-    else if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmax" ) == 0 ) //GET /cmd?tempmin=100 HTTP/1.1
+    if ( checkStr ( index, "?tempmax" ) ) //GET /cmd?tempmin=100 HTTP/1.1
     {
         int temp = leerTemp ( peticion, index );
+
         if ( temp == 126 ) return ERRORPET;
         if ( temp < data->tempMin || temp > 125 ) return FUERARANGO;
 
@@ -145,33 +158,32 @@ String server::comandoServer ( int index )
         flagGuardado = 1;
         return GUARDADO;
     }
-    else if ( peticion.substring ( index, index + 8 ).compareTo ( "?tempmin" ) == 0 )  //GET /cmd?tempmin=-11 HTTP/1.1
+    if ( checkStr ( index, "?tempmin" ) )  //GET /cmd?tempmin=-11 HTTP/1.1
     {
         int temp = leerTemp ( peticion, index );
+
         if ( temp == 126 ) return ERRORPET;
         if ( temp > data->tempMax || temp < -40 ) return FUERARANGO;
 
         data->tempMin = temp;
-        flagGuardado = 2;
+        flagGuardado = 1;
         return GUARDADO;
     }
-    else if ( peticion.substring ( index, index + 6 ).compareTo ( "?tomas" ) == 0 ) //GET /cmd?tomas+1=0 HTTP/1.1
-    {                                                                               //012345678901234567890123456
+    if ( checkStr ( index, "?tomas" ) ) //GET /cmd?tomas+1=0 HTTP/1.1
+    {
         if ( peticion [ index + 6 ] != '+' || peticion [ index + 8 ] != '=' || peticion [ index + 10 ] != ' ' ) return ERRORPET;
 
         int toma = peticion [index + 7] - 48;
         int estado = peticion [index + 9] - 48;
 
         if ( toma < 1 || toma > 5 ) return FUERARANGO;
-        if ( estado == 1 || estado == 0 )
-        {
-            data->estTomas [toma-1] = estado;
-            flagGuardado = 3;
-            return GUARDADO;
-        }
-        
+        if ( estado != 1 && estado != 0 ) return ERRORPET;
+
+        data->estTomas [toma-1] = estado;
+        flagGuardado = 2;
+        return GUARDADO;
     }
-    if ( peticion.substring ( index, index + 6 ).compareTo ( "?ipdef" ) == 0 ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
+    if ( checkStr ( index, "?ipdef" ) ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
     {
         if ( peticion [ index + 6 ] != '=' ) return ERRORPET;
         int fin = peticion.indexOf ( "HTTP" )-1;
@@ -180,30 +192,22 @@ String server::comandoServer ( int index )
         if ( aux.fromString ( peticion.substring ( index+7, fin ) ) == 0 ) return FUERARANGO;
 
         data->ipDef = aux;
-
-        if ( data->dhcp == 0 ) 
-        {
-            Ethernet.begin ( data->mac, data->ipDef );
-            flagGuardado = 4;
-        }
-
+        if ( data->dhcp == 0 ) flagGuardado = 3;
         return GUARDADO;
     }
-    if ( peticion.substring ( index, index + 5 ).compareTo ( "?dhcp" ) == 0 ) //GET /cmd?dhcp=1 HTTP/1.1
+    if ( checkStr ( index, "?dhcp" ) ) //GET /cmd?dhcp=1 HTTP/1.1
     {
         if ( peticion [ index + 5 ] != '=' || peticion [ index + 7 ] != ' ' ) return ERRORPET;
         if (  peticion [ index + 6 ] != '1' &&  peticion [ index + 6 ] != '0' ) return ERRORPET;
 
         int aux = peticion [ index + 6 ] - 48;
-
         if ( aux == 0 || aux == 1 ) data->dhcp = aux;
 
-        flagGuardado = 6;
-
-        if ( !data->dhcp )return String ( "Nueva IP:" + data->ipDef );
-        else return GUARDADO;
+        flagGuardado = 3;
+        if ( !data->dhcp ) return String ( "Nueva IP:" + data->ipDef );
+        return GUARDADO;
     }
-    if ( peticion.substring ( index, index + 7 ).compareTo ( "?puerto" ) == 0 ) //GET /cmd?puerto=10 HTTP/1.1
+    if ( checkStr ( index, "?puerto" ) ) //GET /cmd?puerto=10 HTTP/1.1
     {
         if ( peticion [ index + 7 ] != '=' ) return ERRORPET;
 
@@ -217,10 +221,50 @@ String server::comandoServer ( int index )
         }
 
         data->puerto = aux.toInt (); 
+        flagGuardado = 4;
+        return String ( "Nueva puerto:" +  String (data->puerto) );
+    }
+    if ( checkStr ( index, "?clave" ) )
+    {
+        if ( peticion [ index + 6 ] != '=' ) return ERRORPET;
 
-        flagGuardado = 6;
+        int fin = peticion.indexOf ( "HTTP" )-1;
+        String aux = peticion.substring ( index + 7, fin );
 
-        return String ( "Nueva puerto:" +  String (data->puerto) + "\nReiniciando equipo" );
+        for ( int i=0; i<aux.length (); i++ ) if ( !checkAlfaNum ( aux [i] ) ) return ERRORPET;
+                
+        bufferClave = aux;
+
+        return GUARDADO;
+    }
+    if ( checkStr ( index, "?user" ) )
+    {
+        if ( peticion [ index + 5 ] != '=' ) return ERRORPET;
+
+        int fin = peticion.indexOf ( "HTTP" )-1;
+        String aux = peticion.substring ( index + 6, fin );
+
+        for ( int i=0; i<aux.length (); i++ ) if ( !checkAlfaNum ( aux [i] ) ) return ERRORPET;
+
+        bufferUser = aux;
+
+        return GUARDADO;
+    }
+    if ( checkStr ( index, "?validar" ) )
+    {
+        if ( peticion [ index + 8 ] != '=' ) return ERRORPET;
+
+        int fin = peticion.indexOf ( "HTTP" )-1;
+        String aux = peticion.substring ( index + 9, fin );
+
+        if ( aux.compareTo ( bufferUser + "+" + bufferUser ) == 0 ) 
+        {
+            data->clave = bufferClave;
+            data->usuario = bufferUser;
+            flagGuardado = 5;
+            return "OK";
+        }
+        else return "Incorrecto";
     }
     return ERRORPET;
 }
@@ -281,3 +325,44 @@ String server::encodeTomas ( bool *estTomas, float *corriente )
 }
 
 String server::encodeIp ( IPAddress &aux ) { return ( String ( aux [0] ) + '.' + String ( aux [1] ) + '.' + String ( aux [2] ) + '.' + String ( aux [3] ) ); }
+
+void server::checkDHCP ()
+{
+    /*
+    *       Cada 30 minutos llama al método que comprueba que la ddirección DHCP siga siendo válida
+    *   puede retornar:
+    *   --0: el metoro hizo algo mal
+    *   --1: DHCP renovado con la misma IP
+    *   --2: Falló renovar la misma IP
+    *   --3: Renovó el DHCP pero con una IP diferente
+    *   --4: Falló de renovar el DHCP con una IP distinta
+    *      
+    *       Si cambia la IP en el proceso no es necesario cambiar ninguna cosa adicional ya que siempre
+    *   se accede desde Ethernet.localIP () cuando se quiere saber la IP que se usa y luego no se guarda
+    *   en ningún otro lado.
+    *       Solo se necesita reiniciar los contadores.
+    */
+    if ( millis () - millisDHCP >= periodoDHCP ) 
+    {
+        millisDHCP = millis ();
+        int retorno = Ethernet.maintain ();
+        if ( retorno == 0 || retorno == 1 || retorno == 3 )
+        {
+            if ( contErrorDHCP >= FALLOSDHCP ) load (); //millisDHCP y el contador se renuevan en load ()
+            else contErrorDHCP++;
+        }
+        if ( retorno == 2 || retorno == 4 ) 
+        {
+            millisDHCP = millis ();
+            contErrorDHCP = 0;
+        }
+    }
+}
+
+bool server::checkStr ( int index, const char *str )
+{
+    int largo = strlen ( str );
+    return !(peticion.substring ( index, index + largo ).compareTo ( str ));
+}
+
+bool server::checkAlfaNum ( char c ) { return !(!(c >= '0' && c <= '9') && !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') ); }

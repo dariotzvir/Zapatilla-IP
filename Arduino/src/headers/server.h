@@ -21,6 +21,7 @@
 #define FUERARANGO "Fuera de rango"
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
+#define FALLOSDHCP 10
 
 class server: EthernetServer
 {
@@ -33,8 +34,16 @@ class server: EthernetServer
         DATA *data;
         int flagGuardado = 0;                               
         String peticion;
+        unsigned long millisDHCP = 0;
+        long periodoDHCP = 3000000; //Si le pongo int tiraba problemas de casteo, el ciclo es 30min
+        int contErrorDHCP = 0;
+        String bufferClave = "", bufferUser = "";
 
         void retorno ();
+        void checkDHCP ();
+        bool checkStr ( int, const char * );
+        bool checkAlfaNum ( char );
+        bool checkLogin ();
 
         String comandoServer ( int );
         String lecturaServer ( int );

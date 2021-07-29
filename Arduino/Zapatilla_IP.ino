@@ -74,38 +74,28 @@ void loop()
     funACS ();
     funPantalla ();
 
-    switch ( _server.rutina () ) //Retorna un flag que indica si se cambió alguna variable
-    {
-        case 0:
-            break;
+    int retorno = _server.rutina ();
 
-        guardarSD ();
-        
+    switch ( retorno )
+    {
         case 1:
-            guardarSD ();
             _pantalla.bufferTempMax = data.tempMax;
-            break;
-        case 2:
-            guardarSD ();
             _pantalla.bufferTempMin = data.tempMin;
             break;
-        case 3:
+        case 2:
             for ( int i=0; i<5; i++ ) _tomas.conm ( i, data.estTomas [i] );
-            guardarSD ();
             break;
-        case 4:
-            break;
-        case 5:
-            guardarSD ();
+        case 3:
             _server.load ();
             break;
-        case 6:
-            Serial.println ( data.puerto );
-            guardarSD ();
-            wdt_enable( WDTO_250MS ); //Llama al watchdog
-            while (1);
+        case 4:
+            server _aux ( data ); 
+            _server = _aux; 
+            _server.load ();
             break;
     }
+
+    if ( retorno ) guardarSD ();
 }
 
 void funDHT ()
@@ -230,7 +220,7 @@ void guardarSD ()
 
         configJson ["dhcp"] = data.dhcp;
         configJson ["usuario"] = data.usuario;
-        configJson ["clave"] = data.contra;
+        configJson ["clave"] = data.clave;
         configJson ["puerto"] = data.puerto;
 
         for ( int i = 0 ; i < N ; i++ ) configJson ["estado"][i] = data.estTomas [i];
@@ -291,7 +281,7 @@ void cargarSD ()
         if ( configJson.containsKey ( "clave" ) ) 
         {
             String c = configJson ["clave"];
-            data.contra = c; 
+            data.clave = c; 
         }
     }
     else 
