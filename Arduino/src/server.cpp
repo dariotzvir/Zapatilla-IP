@@ -43,29 +43,42 @@ int server::rutina ()
     cmdCliente.flush ();
     cmdCliente = available ();
     char tipoPeticion = '\0';
+    bool lineaEnBlanco = 1;
 
-    if ( cmdCliente ) while ( cmdCliente.connected () )
-        if ( cmdCliente.available () )
-        {
-            char c;
-            if ( cmdCliente.available () )
+    if ( cmdCliente )
+        while ( cmdCliente.connected () )
             {
-                c = cmdCliente.read ();
-                if ( tipoPeticion == '\0' ) tipoPeticion = toupper (c);
+                char c;
+                if ( cmdCliente.available () )
+                {
+                    c = cmdCliente.read ();
+                    if ( tipoPeticion == '\0' ) tipoPeticion = toupper (c);
+                    Serial.print ( c );
+                    if ( peticion.length () < 100 ) peticion += c;
+                }
+                if ( tipoPeticion == 'G' && c == '\n' )
+                {
+                    retorno ();
+                    delay (1);
+                    cmdCliente.stop ();
+                    break;
+                }
+                else if ( lineaEnBlanco && c == '\n' )
+                {        
+                    
+                    cmdCliente.println ( "HTTP/1.1 200 OK" );
+                    cmdCliente.println ( "Content-Type: text/plain" );
+                    cmdCliente.println ( "Connection: close" );
+                    cmdCliente.println ();
+                    cmdCliente.println ( "CHACHACHACHA" );
 
-                Serial.print ( c );
-                if ( peticion.length () < 100 ) peticion += c;
+                    delay (1);
+                    cmdCliente.stop ();
+                    break;
+                }
+                if ( c == '\n' ) lineaEnBlanco = 1;
+                else if ( c != '\r' ) lineaEnBlanco = 0;
             }
-            if ( tipoPeticion == 'G' && ( !cmdCliente.available () || c == '\n' ) )
-            {
-                retorno ();
-                delay (1);
-                cmdCliente.stop ();
-                break;
-            }
-            else if ( tipoPeticion == 'P' && ( !cmdCliente.available () || c == '\n' ) )//POST, TODO
-        }
-    
     return flagGuardado;
 }
 
@@ -78,7 +91,7 @@ void server::retorno ()
     else if ( peticion.indexOf ( " / " ) > 0 ) devolucion = "Zapatilla IP OK";
     //Serial.println ( "Devolviendo" );
 
-    cmdCliente.println ( "HTTP/1.1 400 OK" );
+    cmdCliente.println ( "HTTP/1.1 200 OK" );
     cmdCliente.println ( "Content-Type: text/plain" );
     cmdCliente.println ( "Connection: close" );
     cmdCliente.println (); 
@@ -89,7 +102,7 @@ void server::retorno ()
 
 bool server::checkLogin ()
 {
-
+    return 1;
 }
 
 String server::lecturaServer ( int index )
