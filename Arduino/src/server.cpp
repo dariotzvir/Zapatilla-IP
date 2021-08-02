@@ -43,7 +43,12 @@ int server::rutina ()
     cmdCliente.flush ();
     cmdCliente = available ();
     char tipoPeticion = '\0';
-    bool lineaEnBlanco = 1;
+    char lineaEnBlanco = 1;
+    bool flagSegundaLinea = 0;
+    bool flag = 0;
+
+    String header = "";
+    bool flagHeader = 0;
 
     if ( cmdCliente )
         while ( cmdCliente.connected () )
@@ -53,43 +58,47 @@ int server::rutina ()
                 {
                     c = cmdCliente.read ();
                     if ( tipoPeticion == '\0' ) tipoPeticion = toupper (c);
+                    
                     Serial.print ( c );
-                    if ( peticion.length () < 100 ) peticion += c;
+                   /* if ( peticion.length () < 100 )*/ peticion += c;
+                    if ( c == '\n' ) flagHeader = 1; 
+                    if ( flagHeader == 0 ) header += c;
+                    else peticion += c;
                 }
+
                 if ( tipoPeticion == 'G' && c == '\n' )
                 {
-                    retorno ();
+                    Serial.println ( "\nRetorno GET" );
+                    retorno ( GET );
                     delay (1);
                     cmdCliente.stop ();
                     break;
                 }
-                else if ( lineaEnBlanco && c == '\n' )
-                {        
-                    
+                if ( !cmdCliente.available () )
+                {   
+                    Serial.println ( "\nRetorno POST" );  
                     cmdCliente.println ( "HTTP/1.1 200 OK" );
                     cmdCliente.println ( "Content-Type: text/plain" );
                     cmdCliente.println ( "Connection: close" );
-                    cmdCliente.println ();
-                    cmdCliente.println ( "CHACHACHACHA" );
-
+                    cmdCliente.println (); 
+                    cmdCliente.println ( peticion );   
+                    //retorno ( POST );
                     delay (1);
                     cmdCliente.stop ();
                     break;
                 }
-                if ( c == '\n' ) lineaEnBlanco = 1;
-                else if ( c != '\r' ) lineaEnBlanco = 0;
             }
     return flagGuardado;
 }
 
-void server::retorno ()
+void server::retorno ( bool tipo )
 {
     String devolucion = "Peticion erronea";
 
     if ( peticion.indexOf ( "/lec" ) > 0 && checkLogin () ) devolucion = lecturaServer ( peticion.indexOf ( "/lec" ) );
-    else if ( peticion.indexOf ( "/cmd" ) > 0 && checkLogin () ) devolucion = comandoServer ( peticion.indexOf ( "/cmd" ) );
+    else if ( tipo == GET && peticion.indexOf ( "/cmd" ) > 0 && checkLogin () ) devolucion = comandoServerGET ( peticion.indexOf ( "/cmd" ) );
+    else if ( tipo == POST && peticion.indexOf ( "/cmd" ) > 0 && checkLogin () ) devolucion = comandoServerPOST ( peticion.indexOf ( "/cmd" ) );
     else if ( peticion.indexOf ( " / " ) > 0 ) devolucion = "Zapatilla IP OK";
-    //Serial.println ( "Devolviendo" );
 
     cmdCliente.println ( "HTTP/1.1 200 OK" );
     cmdCliente.println ( "Content-Type: text/plain" );
@@ -136,7 +145,7 @@ String server::lecturaServer ( int index )
     }
     if ( checkStr ( index, "?tempmax" ) ) retorno =  data->tempMax + 'C';
     if ( checkStr ( index, "?tempmin" ) ) retorno =  data->tempMin + 'C';
-    if ( checkStr ( index, "?temp " ) ) retorno =  data->temp + 'C';
+    else if ( checkStr ( index, "?temp " ) ) retorno =  data->temp + 'C';
     if ( checkStr ( index, "?hum" ) ) retorno =  data->hum + '%' ;
     if ( checkStr ( index, "?tension" ) ) retorno =  data->tension + 'V' ;
     if ( checkStr ( index, "?dhcp" ) ) retorno = (data->dhcp ? "Si" : "No");
@@ -149,7 +158,12 @@ String server::lecturaServer ( int index )
     return retorno;
 }
 
-String server::comandoServer ( int index )
+String server::comandoServerPOST ( int index )
+{
+    return "POST";
+}
+
+String server::comandoServerGET ( int index )
 {
     index += 4; //Desplaza el cursor al final del sector de string ya sea /lec o /cmd, el indice primero corresponde al "/" al sumarle 4 pasas al "?"
 

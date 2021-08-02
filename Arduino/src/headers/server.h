@@ -22,6 +22,8 @@
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
 #define FALLOSDHCP 10
+#define GET 0
+#define POST 1
 
 class server: EthernetServer
 {
@@ -39,13 +41,14 @@ class server: EthernetServer
         int contErrorDHCP = 0;
         String bufferClave = "", bufferUser = "";
 
-        void retorno ();
+        void retorno ( bool );
         void checkDHCP ();
         bool checkStr ( int, const char * );
         bool checkAlfaNum ( char );
         bool checkLogin ();
 
-        String comandoServer ( int );
+        String comandoServerPOST ( int );
+        String comandoServerGET ( int );
         String lecturaServer ( int );
         String encodeIp ( IPAddress & );
         String encodeTomas ( bool *, float * );

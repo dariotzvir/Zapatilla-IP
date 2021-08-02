@@ -44,6 +44,9 @@ void setup()
 {                   
     Serial.begin ( 9600 );
     data.ipDef = ipStored;
+    
+    SD.end ();
+    delay ( 100 );
     if ( !SD.begin ( pin.pinSD ) ) 
     {
         Serial.println ( "SD falla" );
@@ -148,7 +151,6 @@ void funPul ()
                     default:
                         guardarSD ();
                         _pulsadores.flagTimer = 0;
-                        _server.load ();
                         break;
                 }
                 break;
