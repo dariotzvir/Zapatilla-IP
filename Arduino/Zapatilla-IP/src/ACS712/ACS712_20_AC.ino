@@ -14,7 +14,7 @@
 // ACS712 20A uses 100 mV per A
 // ACS712 30A uses  66 mV per A
 
-ACS712  ACS(A0, 5.0, 1023, 100);
+ACS712  ACS(A8, 5.0, 1023, 66);
 // ESP 32 example (requires resistors to step down the logic voltage)
 //ACS712  ACS(25, 5.0, 4095, 185);
 

@@ -35,7 +35,7 @@ class server: EthernetServer
     private:
         DATA *data;
         int flagGuardado = 0;                               
-        String peticion;
+        String peticion, header;
         unsigned long millisDHCP = 0;
         long periodoDHCP = 3000000; //Si le pongo int tiraba problemas de casteo, el ciclo es 30min
         int contErrorDHCP = 0;
@@ -45,9 +45,8 @@ class server: EthernetServer
         void checkDHCP ();
         bool checkStr ( int, const char * );
         bool checkAlfaNum ( char );
-        bool checkLogin ();
+        bool checkLogin ( int );
 
-        String comandoServerPOST ( int );
         String comandoServerGET ( int );
         String lecturaServer ( int );
         String encodeIp ( IPAddress & );

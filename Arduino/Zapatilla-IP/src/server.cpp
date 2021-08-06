@@ -1,5 +1,7 @@
 #include "headers/server.h"
 
+#include <utility/w5100.h>
+
 EthernetClient cmdCliente;
 
 server::server ( DATA &data ): EthernetServer ( data.puerto )
@@ -11,6 +13,8 @@ void server::setup ()
 {
     Ethernet.begin ( data->mac, data->ipDef );
     
+    bufferClave = data->clave;
+    bufferUser = data->usuario;
     //if ( Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() != LinkON ) errorEthernet = 1;
 
     load ();
@@ -39,16 +43,12 @@ void server::load ()
 
 int server::rutina ()
 {
+    flagGuardado = 0;
     checkDHCP ();
     cmdCliente.flush ();
     cmdCliente = available ();
-    char tipoPeticion = '\0';
-    char lineaEnBlanco = 1;
-    bool flagSegundaLinea = 0;
-    bool flag = 0;
-
-    String header = "";
-    bool flagHeader = 0;
+    bool lineaEnBlanco = 1;
+    char tipoPeticion = 0;
 
     if ( cmdCliente )
         while ( cmdCliente.connected () )
@@ -57,36 +57,45 @@ int server::rutina ()
                 if ( cmdCliente.available () )
                 {
                     c = cmdCliente.read ();
-                    if ( tipoPeticion == '\0' ) tipoPeticion = toupper (c);
-                    
+                    if ( tipoPeticion == 0 ) tipoPeticion = c;
+
                     Serial.print ( c );
-                   /* if ( peticion.length () < 100 )*/ peticion += c;
-                    if ( c == '\n' ) flagHeader = 1; 
-                    if ( flagHeader == 0 ) header += c;
-                    else peticion += c;
+                    if ( header.length () < 100 ) header += c;
                 }
 
                 if ( tipoPeticion == 'G' && c == '\n' )
                 {
-                    Serial.println ( "\nRetorno GET" );
+                    //Serial.println ( "\nRetorno GET" );
                     retorno ( GET );
                     delay (1);
                     cmdCliente.stop ();
                     break;
                 }
-                if ( !cmdCliente.available () )
-                {   
-                    Serial.println ( "\nRetorno POST" );  
+                //Leer POST
+                /*if ( lineaEnBlanco && c == '\n' )
+                {
+                    while ( cmdCliente.available () ) 
+                    {
+                        c = cmdCliente.read ();
+                        peticion += c;
+                    }
                     cmdCliente.println ( "HTTP/1.1 200 OK" );
                     cmdCliente.println ( "Content-Type: text/plain" );
                     cmdCliente.println ( "Connection: close" );
                     cmdCliente.println (); 
-                    cmdCliente.println ( peticion );   
-                    //retorno ( POST );
+                    cmdCliente.println ( peticion );
+                    Serial.println ( peticion );
+
+                    peticion = "";
+
                     delay (1);
                     cmdCliente.stop ();
+                    cmdCliente.clo
                     break;
                 }
+
+                if ( c == '\n' ) lineaEnBlanco = 1;
+                else if ( c != '\r' ) lineaEnBlanco = 0;*/
             }
     return flagGuardado;
 }
@@ -95,10 +104,15 @@ void server::retorno ( bool tipo )
 {
     String devolucion = "Peticion erronea";
 
-    if ( peticion.indexOf ( "/lec" ) > 0 && checkLogin () ) devolucion = lecturaServer ( peticion.indexOf ( "/lec" ) );
-    else if ( tipo == GET && peticion.indexOf ( "/cmd" ) > 0 && checkLogin () ) devolucion = comandoServerGET ( peticion.indexOf ( "/cmd" ) );
-    else if ( tipo == POST && peticion.indexOf ( "/cmd" ) > 0 && checkLogin () ) devolucion = comandoServerPOST ( peticion.indexOf ( "/cmd" ) );
-    else if ( peticion.indexOf ( " / " ) > 0 ) devolucion = "Zapatilla IP OK";
+    String cmd = header.substring (4, 8);
+
+    if ( !cmd.compareTo ( "/ HT" ) > 0 ) devolucion = "Zapatilla IP OK";
+    else if ( checkLogin ( 8 ) )
+    {
+        if ( !cmd.compareTo ( "/lec" ) ) devolucion = lecturaServer ( 8 );
+        else if ( tipo == GET && !cmd.compareTo ( "/cmd" ) > 0 ) devolucion = comandoServerGET ( 8 );
+        else if ( tipo == POST && !cmd.compareTo ( "/cmd" ) > 0 ) devolucion = comandoServerGET ( 8 );
+    }
 
     cmdCliente.println ( "HTTP/1.1 200 OK" );
     cmdCliente.println ( "Content-Type: text/plain" );
@@ -106,18 +120,31 @@ void server::retorno ( bool tipo )
     cmdCliente.println (); 
     cmdCliente.println ( devolucion );
 
-    peticion = "";
+    header = "";
 }
 
-bool server::checkLogin ()
+bool server::checkLogin ( int index )
 {
-    return 1;
+    /*
+    *   GET /cmd?admin+12345+tempmax=123 HTTP/1.1
+    *           ?admin+12345
+    *   GET /cmd?tempmax=123 HTTP/1.1
+    */
+    
+    String aux = '?' + data->usuario + '+' + data->clave; //Formatea a como deberían estar el usuario y contraseña en la peticion HTTP
+    String cmd = header.substring ( index, index+aux.length () ); //Selecciona el segmento de string donde deberia estar el usuario y contraseña
+    if ( cmd.compareTo ( aux ) == 0 ) //Chequea si son iguales
+    {
+        header.remove ( index+1, aux.length () ); //Remueve el sector de contraseña y usuario así se pueden utiliza los metodos que ya tenía escritos
+        Serial.println ( header );
+        return 1;
+    }
+    return 0;
 }
 
 String server::lecturaServer ( int index )
 {
     String retorno = ERRORPET;
-    index += 4; //Desplaza el cursor al final del sector de string ya sea /lec o /cmd, el indice primero corresponde al "/" al sumarle 4 pasas al "?"
 
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
 
@@ -145,7 +172,7 @@ String server::lecturaServer ( int index )
     }
     if ( checkStr ( index, "?tempmax" ) ) retorno =  data->tempMax + 'C';
     if ( checkStr ( index, "?tempmin" ) ) retorno =  data->tempMin + 'C';
-    else if ( checkStr ( index, "?temp " ) ) retorno =  data->temp + 'C';
+    if ( checkStr ( index, "?temp " ) ) retorno =  data->temp + 'C';
     if ( checkStr ( index, "?hum" ) ) retorno =  data->hum + '%' ;
     if ( checkStr ( index, "?tension" ) ) retorno =  data->tension + 'V' ;
     if ( checkStr ( index, "?dhcp" ) ) retorno = (data->dhcp ? "Si" : "No");
@@ -158,25 +185,52 @@ String server::lecturaServer ( int index )
     return retorno;
 }
 
-String server::comandoServerPOST ( int index )
-{
-    return "POST";
-}
-
 String server::comandoServerGET ( int index )
 {
-    index += 4; //Desplaza el cursor al final del sector de string ya sea /lec o /cmd, el indice primero corresponde al "/" al sumarle 4 pasas al "?"
-
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
 
     if ( checkStr ( index, "?mac" ) ) //GET /cmd?mac=DE+AD+BE+EF+FE+ED HTTP/1.1
     {
-        if ( peticion [ index + 4 ] != '=' || peticion [ index + 22 ]) return ERRORPET;
+        if ( header [ index + 4 ] != '=' ) return ERRORPET;
+        int fin = header.indexOf ( "HTTP" );
 
+        String aux = header.substring ( index+5, fin );
+        Serial.println ( aux );
+        byte macAux [6] = {0};
+        int c = 0;
+        byte buffer = 0;
+        for ( auto i : aux )
+        {
+            i = toupper ( i );
+            
+            if ( c>=6 )return ERRORPET;
+            if ( !isHexadecimalDigit ( i ) && i!='+' && i!=' ' ) return ERRORPET;   
+            if ( i == '+' || i== ' ' ) 
+            {
+                macAux [c++] = buffer;
+                buffer = 0;
+            }
+            if ( i>='0' && i<='9' ) buffer = buffer*16 + i-'0';
+            else if ( i>='A' && i<='F' ) buffer = buffer*16 + 10 + i-'A';
+        }
+        if ( c!=6 ) return ERRORPET;
+
+        /*for ( int i=0 ; i<6; i++ ) Serial.println ( macAux[i], 16 );
+        Serial.println ( "\n" );
+
+        for ( int i=0 ; i<6; i++ ) Serial.println ( macAux[i] );
+        Serial.println ( "\n" );*/
+
+        for ( int i=0; i<6; i++ ) data->mac [i] = macAux [i];
+        
+        Serial.println ( encodeMac (data->mac) );
+
+        flagGuardado = 7;
+        return GUARDADO;
     }
     if ( checkStr ( index, "?tempmax" ) ) //GET /cmd?tempmin=100 HTTP/1.1
     {
-        int temp = leerTemp ( peticion, index );
+        int temp = leerTemp ( header, index );
 
         if ( temp == 126 ) return ERRORPET;
         if ( temp < data->tempMin || temp > 125 ) return FUERARANGO;
@@ -187,7 +241,7 @@ String server::comandoServerGET ( int index )
     }
     if ( checkStr ( index, "?tempmin" ) )  //GET /cmd?tempmin=-11 HTTP/1.1
     {
-        int temp = leerTemp ( peticion, index );
+        int temp = leerTemp ( header, index );
 
         if ( temp == 126 ) return ERRORPET;
         if ( temp > data->tempMax || temp < -40 ) return FUERARANGO;
@@ -198,10 +252,10 @@ String server::comandoServerGET ( int index )
     }
     if ( checkStr ( index, "?tomas" ) ) //GET /cmd?tomas+1=0 HTTP/1.1
     {
-        if ( peticion [ index + 6 ] != '+' || peticion [ index + 8 ] != '=' || peticion [ index + 10 ] != ' ' ) return ERRORPET;
+        if ( header [ index + 6 ] != '+' || header [ index + 8 ] != '=' || header [ index + 10 ] != ' ' ) return ERRORPET;
 
-        int toma = peticion [index + 7] - 48;
-        int estado = peticion [index + 9] - 48;
+        int toma = header [index + 7] - '0';
+        int estado = header [index + 9] - '0';
 
         if ( toma < 1 || toma > 5 ) return FUERARANGO;
         if ( estado != 1 && estado != 0 ) return ERRORPET;
@@ -212,11 +266,11 @@ String server::comandoServerGET ( int index )
     }
     if ( checkStr ( index, "?ipdef" ) ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
     {
-        if ( peticion [ index + 6 ] != '=' ) return ERRORPET;
-        int fin = peticion.indexOf ( "HTTP" )-1;
+        if ( header [ index + 6 ] != '=' ) return ERRORPET;
+        int fin = header.indexOf ( "HTTP" )-1;
 
         IPAddress aux;
-        if ( aux.fromString ( peticion.substring ( index+7, fin ) ) == 0 ) return FUERARANGO;
+        if ( aux.fromString ( header.substring ( index+7, fin ) ) == 0 ) return FUERARANGO;
 
         data->ipDef = aux;
         if ( data->dhcp == 0 ) flagGuardado = 3;
@@ -224,39 +278,34 @@ String server::comandoServerGET ( int index )
     }
     if ( checkStr ( index, "?dhcp" ) ) //GET /cmd?dhcp=1 HTTP/1.1
     {
-        if ( peticion [ index + 5 ] != '=' || peticion [ index + 7 ] != ' ' ) return ERRORPET;
-        if (  peticion [ index + 6 ] != '1' &&  peticion [ index + 6 ] != '0' ) return ERRORPET;
+        if ( header [ index + 5 ] != '=' || header [ index + 7 ] != ' ' ) return ERRORPET;
+        if (  header [ index + 6 ] != '1' &&  header [ index + 6 ] != '0' ) return ERRORPET;
 
-        int aux = peticion [ index + 6 ] - 48;
+        int aux = header [ index + 6 ] - '0';
         if ( aux == 0 || aux == 1 ) data->dhcp = aux;
 
         flagGuardado = 3;
-        if ( !data->dhcp ) return String ( "Nueva IP:" + data->ipDef );
         return GUARDADO;
     }
     if ( checkStr ( index, "?puerto" ) ) //GET /cmd?puerto=10 HTTP/1.1
     {
-        if ( peticion [ index + 7 ] != '=' ) return ERRORPET;
+        if ( header [ index + 7 ] != '=' ) return ERRORPET;
 
-        int fin = peticion.indexOf ( "HTTP" )-1;
-        String aux = peticion.substring ( index + 8, fin );
+        int fin = header.indexOf ( "HTTP" )-1;
+        String aux = header.substring ( index + 8, fin );
  
-        for ( int i=0; i<aux.length (); i++ ) 
-        {
-            Serial.println (aux[i]);
-            if ( !(aux [i] >= '0' && aux [i] <= '9') ) return ERRORPET;
-        }
+        for ( int i=0; i<aux.length (); i++ ) if ( !(aux [i] >= '0' && aux [i] <= '9') ) return ERRORPET;
 
         data->puerto = aux.toInt (); 
         flagGuardado = 4;
-        return String ( "Nueva puerto:" +  String (data->puerto) );
+        return String ( "Nuevo puerto:" +  String (data->puerto) );
     }
     if ( checkStr ( index, "?clave" ) )
     {
-        if ( peticion [ index + 6 ] != '=' ) return ERRORPET;
+        if ( header [ index + 6 ] != '=' ) return ERRORPET;
 
-        int fin = peticion.indexOf ( "HTTP" )-1;
-        String aux = peticion.substring ( index + 7, fin );
+        int fin = header.indexOf ( "HTTP" )-1;
+        String aux = header.substring ( index + 7, fin );
 
         for ( int i=0; i<aux.length (); i++ ) if ( !checkAlfaNum ( aux [i] ) ) return ERRORPET;
                 
@@ -266,10 +315,10 @@ String server::comandoServerGET ( int index )
     }
     if ( checkStr ( index, "?user" ) )
     {
-        if ( peticion [ index + 5 ] != '=' ) return ERRORPET;
+        if ( header [ index + 5 ] != '=' ) return ERRORPET;
 
-        int fin = peticion.indexOf ( "HTTP" )-1;
-        String aux = peticion.substring ( index + 6, fin );
+        int fin = header.indexOf ( "HTTP" )-1;
+        String aux = header.substring ( index + 6, fin );
 
         for ( int i=0; i<aux.length (); i++ ) if ( !checkAlfaNum ( aux [i] ) ) return ERRORPET;
 
@@ -279,12 +328,12 @@ String server::comandoServerGET ( int index )
     }
     if ( checkStr ( index, "?validar" ) )
     {
-        if ( peticion [ index + 8 ] != '=' ) return ERRORPET;
+        if ( header [ index + 8 ] != '=' ) return ERRORPET;
 
-        int fin = peticion.indexOf ( "HTTP" )-1;
-        String aux = peticion.substring ( index + 9, fin );
+        int fin = header.indexOf ( "HTTP" )-1;
+        String aux = header.substring ( index + 9, fin );
 
-        if ( aux.compareTo ( bufferUser + "+" + bufferUser ) == 0 ) 
+        if ( aux.compareTo ( bufferUser + "+" + bufferClave ) == 0 ) 
         {
             data->clave = bufferClave;
             data->usuario = bufferUser;
@@ -296,10 +345,10 @@ String server::comandoServerGET ( int index )
     return ERRORPET;
 }
 
-int server::leerTemp ( String &peticion, int index )
+int server::leerTemp ( String &header, int index )
 {
     int temp;
-    String aux = peticion.substring ( index + 9, index + 12 );
+    String aux = header.substring ( index + 9, index + 12 );
     if ( aux [0] == '-' )
     {
         aux.remove ( 0, 1 );
@@ -307,21 +356,21 @@ int server::leerTemp ( String &peticion, int index )
     }
     else temp = aux.toInt ();
 
-    if ( !comprobarTempBoundaries ( peticion, temp, index ) ) return 126;
+    if ( !comprobarTempBoundaries ( header, temp, index ) ) return 126;
 
     return temp;
 }
 
-bool server::comprobarTempBoundaries ( String &peticion, int temp, int index )
+bool server::comprobarTempBoundaries ( String &header, int temp, int index )
 {
-    if ( peticion [ index + 8 ] != '=' ) return 0;
-    if ( temp >= 0 && temp < 10 && peticion [ index + 10 ] != ' ' ) return 0;
+    if ( header [ index + 8 ] != '=' ) return 0;
+    if ( temp >= 0 && temp < 10 && header [ index + 10 ] != ' ' ) return 0;
 
-    if ( temp >= 10 && temp < 100 && peticion [ index + 11 ] != ' ' ) return 0;
-    if ( temp >= -9 && temp < 0 && peticion [ index + 11 ] != ' ' ) return 0;
+    if ( temp >= 10 && temp < 100 && header [ index + 11 ] != ' ' ) return 0;
+    if ( temp >= -9 && temp < 0 && header [ index + 11 ] != ' ' ) return 0;
 
-    if ( temp >= 100 && temp <= 125 && peticion [ index + 12 ] != ' ' ) return 0;
-    if ( temp >= -40 && temp <= -10 && peticion [ index + 12 ] != ' ' ) return 0;
+    if ( temp >= 100 && temp <= 125 && header [ index + 12 ] != ' ' ) return 0;
+    if ( temp >= -40 && temp <= -10 && header [ index + 12 ] != ' ' ) return 0;
 
     return 1;
 }
@@ -371,6 +420,7 @@ void server::checkDHCP ()
     */
     if ( millis () - millisDHCP >= periodoDHCP ) 
     {
+        Serial.println ( "Check DHCP" );
         millisDHCP = millis ();
         int retorno = Ethernet.maintain ();
         if ( retorno == 0 || retorno == 1 || retorno == 3 )
@@ -383,13 +433,14 @@ void server::checkDHCP ()
             millisDHCP = millis ();
             contErrorDHCP = 0;
         }
+        Serial.println ( "Check DHCP retorno: " + String ( retorno ) );
     }
 }
 
 bool server::checkStr ( int index, const char *str )
 {
     int largo = strlen ( str );
-    return !(peticion.substring ( index, index + largo ).compareTo ( str ));
+    return !(header.substring ( index, index + largo ).compareTo ( str ));
 }
 
 bool server::checkAlfaNum ( char c ) { return !(!(c >= '0' && c <= '9') && !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') ); }

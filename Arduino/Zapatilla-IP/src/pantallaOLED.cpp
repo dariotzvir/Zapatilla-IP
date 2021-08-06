@@ -278,7 +278,7 @@ void pantallaOLED::pantallaApagada ()
 
 int pantallaOLED::logicaEnter ()
 {
-    bool retorno = 0;
+    int retorno = 0;
     if ( pantallaSelec < TMIN ) pantallaSelec = 2; //Si está en una pantalla que no sea de menú cambia a una que lo es
     else if ( pantallaSelec == TMIN || pantallaSelec == TMAX || pantallaSelec == DHCP ) //Pantallas con varaiables a modificar
     {

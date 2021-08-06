@@ -24,6 +24,7 @@ void tomacorrientes::invertir ( int p )
 }
 void tomacorrientes::conm ( int p, bool estado )
 { 
+    estado = !estado;
     //digitalWrite ( pines [p], estado );
     //Copiado desde la referencia de la funcion digitalWrite, quita los chequeos innecesarios en el mismo
     uint8_t port = digitalPinToPort(pin->tomas [p]);
