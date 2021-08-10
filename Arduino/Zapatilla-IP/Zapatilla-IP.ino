@@ -34,7 +34,7 @@ pantallaOLED _pantalla ( data );
 server _server ( data );
 RunningStatistics _zmpt;
 StaticJsonDocument <300> configJson;
-IPAddress ipStored ( 192, 168, 100, 150 ); //IP hardcodeada para cuando se resetea de fábrica
+IPAddress ipStored ( 192, 168, 254, 154 ); //IP hardcodeada para cuando se resetea de fábrica
 
 byte macDef [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 const int periodoDHT = 2000;
@@ -81,23 +81,24 @@ void setup()
 void loop() 
 {
     _zmpt.input ( analogRead ( A0 ) );
+
     funDHT ();
     funPul ();
     funACS ();
+    
     _zmpt.input ( analogRead ( A0 ) );
+    
     funPantalla ();
 
     _zmpt.input ( analogRead ( A0 ) );
     if ( millis () - millisZmpt >= 5000 )
     {
         millisZmpt = millis ();
-        float aux = 0 + 0.0405*_zmpt.sigma ();
-        aux = aux*40.3231;
+        float aux = 1.34*(_zmpt.sigma ()-2.0);
         data.tension = aux;
     }
 
     int retorno = _server.rutina ();
-_zmpt.input ( analogRead ( A0 ) );
     switch ( retorno )
     {
         case 1:
@@ -117,7 +118,7 @@ _zmpt.input ( analogRead ( A0 ) );
             _server.load ();
             break;
     }
-
+    if ( retorno != -1 ) _zmpt.input ( analogRead (A0) );
     if ( retorno ) guardarSD ();
 }
 
@@ -205,7 +206,11 @@ void funPantalla ()
         7 -- Menú de estado de la tarjeta SD
         8 -- Panatalla de reset
     */
+    unsigned long a = millis ();
     if ( millis ()-millisPan>=periodoPan && _pantalla.flagSelec == 0 ) _pantalla.pantallaSelec = 0; //Si se supera el tiempo del timer se apaga la pantalla
+    
+    if ( _pantalla.pantallaSelec ) _zmpt.input ( analogRead ( A0 ) );
+    
     switch ( _pantalla.pantallaSelec )
     {
         case APAGADA: 
@@ -221,6 +226,8 @@ void funPantalla ()
             _pantalla.menu ( Ethernet.localIP (), flagErrorSD ); //Todaas las pantallas del menu en funcion de que pantalla se pasa
             break;
     }
+    Serial.print ( "Oled:  " );
+    Serial.println ( millis ()-a );
 }
 
 void reset ()
@@ -338,5 +345,8 @@ void crearSDdefecto ()
 
 void funACS ()
 {
+    unsigned long a = millis ();
     for ( int i=0; i<5; i++ ) if ( data.estTomas [i] == 1 ) data.corriente [i] = _ACS [i].mA_AC ()/1000.0;
+    Serial.print ( "ACS:  " );
+    Serial.println ( millis () - a );
 }

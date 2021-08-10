@@ -35,7 +35,7 @@ struct DATA
     bool estTomas [N] = {1, 1, 1, 1, 1};
 
     float corriente [N] = {0, 0, 0, 0, 0};
-    float tension = 220;
+    int tension = 220;
     float temp, hum;
 
     int tempMax = 125, tempMin = -40;

@@ -43,7 +43,7 @@ void server::load ()
 
 int server::rutina ()
 {
-    flagGuardado = 0;
+    retornoRutina = -1;
     checkDHCP ();
     cmdCliente.flush ();
     cmdCliente = available ();
@@ -51,53 +51,56 @@ int server::rutina ()
     char tipoPeticion = 0;
 
     if ( cmdCliente )
+    {
+        retornoRutina = 0;
         while ( cmdCliente.connected () )
+        {
+            char c;
+            if ( cmdCliente.available () )
             {
-                char c;
-                if ( cmdCliente.available () )
+                c = cmdCliente.read ();
+                if ( tipoPeticion == 0 ) tipoPeticion = c;
+
+                Serial.print ( c );
+                if ( header.length () < 100 ) header += c;
+            }
+
+            if ( tipoPeticion == 'G' && c == '\n' )
+            {
+                //Serial.println ( "\nRetorno GET" );
+                retorno ( GET );
+                delay (1);
+                cmdCliente.stop ();
+                break;
+            }
+            //Leer POST
+            /*if ( lineaEnBlanco && c == '\n' )
+            {
+                while ( cmdCliente.available () ) 
                 {
                     c = cmdCliente.read ();
-                    if ( tipoPeticion == 0 ) tipoPeticion = c;
-
-                    Serial.print ( c );
-                    if ( header.length () < 100 ) header += c;
+                    peticion += c;
                 }
+                cmdCliente.println ( "HTTP/1.1 200 OK" );
+                cmdCliente.println ( "Content-Type: text/plain" );
+                cmdCliente.println ( "Connection: close" );
+                cmdCliente.println (); 
+                cmdCliente.println ( peticion );
+                Serial.println ( peticion );
 
-                if ( tipoPeticion == 'G' && c == '\n' )
-                {
-                    //Serial.println ( "\nRetorno GET" );
-                    retorno ( GET );
-                    delay (1);
-                    cmdCliente.stop ();
-                    break;
-                }
-                //Leer POST
-                /*if ( lineaEnBlanco && c == '\n' )
-                {
-                    while ( cmdCliente.available () ) 
-                    {
-                        c = cmdCliente.read ();
-                        peticion += c;
-                    }
-                    cmdCliente.println ( "HTTP/1.1 200 OK" );
-                    cmdCliente.println ( "Content-Type: text/plain" );
-                    cmdCliente.println ( "Connection: close" );
-                    cmdCliente.println (); 
-                    cmdCliente.println ( peticion );
-                    Serial.println ( peticion );
+                peticion = "";
 
-                    peticion = "";
-
-                    delay (1);
-                    cmdCliente.stop ();
-                    cmdCliente.clo
-                    break;
-                }
-
-                if ( c == '\n' ) lineaEnBlanco = 1;
-                else if ( c != '\r' ) lineaEnBlanco = 0;*/
+                delay (1);
+                cmdCliente.stop ();
+                cmdCliente.clo
+                break;
             }
-    return flagGuardado;
+
+            if ( c == '\n' ) lineaEnBlanco = 1;
+            else if ( c != '\r' ) lineaEnBlanco = 0;*/
+        }
+    }
+    return retornoRutina;   
 }
 
 void server::retorno ( bool tipo )
@@ -225,7 +228,7 @@ String server::comandoServerGET ( int index )
         
         Serial.println ( encodeMac (data->mac) );
 
-        flagGuardado = 7;
+        retornoRutina = 7;
         return GUARDADO;
     }
     if ( checkStr ( index, "?tempmax" ) ) //GET /cmd?tempmin=100 HTTP/1.1
@@ -236,7 +239,7 @@ String server::comandoServerGET ( int index )
         if ( temp < data->tempMin || temp > 125 ) return FUERARANGO;
 
         data->tempMax = temp;
-        flagGuardado = 1;
+        retornoRutina = 1;
         return GUARDADO;
     }
     if ( checkStr ( index, "?tempmin" ) )  //GET /cmd?tempmin=-11 HTTP/1.1
@@ -247,7 +250,7 @@ String server::comandoServerGET ( int index )
         if ( temp > data->tempMax || temp < -40 ) return FUERARANGO;
 
         data->tempMin = temp;
-        flagGuardado = 1;
+        retornoRutina = 1;
         return GUARDADO;
     }
     if ( checkStr ( index, "?tomas" ) ) //GET /cmd?tomas+1=0 HTTP/1.1
@@ -261,7 +264,7 @@ String server::comandoServerGET ( int index )
         if ( estado != 1 && estado != 0 ) return ERRORPET;
 
         data->estTomas [toma-1] = estado;
-        flagGuardado = 2;
+        retornoRutina = 2;
         return GUARDADO;
     }
     if ( checkStr ( index, "?ipdef" ) ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
@@ -273,7 +276,7 @@ String server::comandoServerGET ( int index )
         if ( aux.fromString ( header.substring ( index+7, fin ) ) == 0 ) return FUERARANGO;
 
         data->ipDef = aux;
-        if ( data->dhcp == 0 ) flagGuardado = 3;
+        if ( data->dhcp == 0 ) retornoRutina = 3;
         return GUARDADO;
     }
     if ( checkStr ( index, "?dhcp" ) ) //GET /cmd?dhcp=1 HTTP/1.1
@@ -284,7 +287,7 @@ String server::comandoServerGET ( int index )
         int aux = header [ index + 6 ] - '0';
         if ( aux == 0 || aux == 1 ) data->dhcp = aux;
 
-        flagGuardado = 3;
+        retornoRutina = 3;
         return GUARDADO;
     }
     if ( checkStr ( index, "?puerto" ) ) //GET /cmd?puerto=10 HTTP/1.1
@@ -297,7 +300,7 @@ String server::comandoServerGET ( int index )
         for ( int i=0; i<aux.length (); i++ ) if ( !(aux [i] >= '0' && aux [i] <= '9') ) return ERRORPET;
 
         data->puerto = aux.toInt (); 
-        flagGuardado = 4;
+        retornoRutina = 4;
         return String ( "Nuevo puerto:" +  String (data->puerto) );
     }
     if ( checkStr ( index, "?clave" ) )
@@ -337,7 +340,7 @@ String server::comandoServerGET ( int index )
         {
             data->clave = bufferClave;
             data->usuario = bufferUser;
-            flagGuardado = 5;
+            retornoRutina = 5;
             return "OK";
         }
         else return "Incorrecto";

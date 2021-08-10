@@ -140,9 +140,9 @@ void pantallaOLED::pantallaPrincipal ()
     print ( data->hum, 1 );
     print ( "%" );
 
-    setCursor ( 14, 51 );                        
+    setCursor ( 19, 51 );                        
     print ( "Tension: " );
-    print ( data->tension, 2 );                      
+    print ( data->tension );                      
     print ( "V" );
 
     display ();

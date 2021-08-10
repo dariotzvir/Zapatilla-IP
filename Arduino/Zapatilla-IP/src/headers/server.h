@@ -34,7 +34,7 @@ class server: EthernetServer
         void load ();
     private:
         DATA *data;
-        int flagGuardado = 0;                               
+        int retornoRutina = 0;                               
         String peticion, header;
         unsigned long millisDHCP = 0;
         long periodoDHCP = 3000000; //Si le pongo int tiraba problemas de casteo, el ciclo es 30min
