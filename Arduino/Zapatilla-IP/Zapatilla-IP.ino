@@ -19,20 +19,13 @@
 
 struct DATA data;
 struct PINES pin;
-ACS712 _ACS [N] = 
-{ 
-    ACS712 ( A8, 5.0, 1023, 66 ), 
-    ACS712 ( A9, 5.0, 1023, 66 ), 
-    ACS712 ( A10, 5.0, 1023, 66 ), 
-    ACS712 ( A11, 5.0, 1023, 66 ), 
-    ACS712 ( A12, 5.0, 1023, 66 )
-};
 DHT _dht ( pin.pinDHT , DHT22 );
 tomacorrientes _tomas ( data, pin );
 pulsadores _pulsadores ( pin );
 pantallaOLED _pantalla ( data );
 server _server ( data );
 RunningStatistics _zmpt;
+RunningStatistics _ACS [N];
 StaticJsonDocument <300> configJson;
 IPAddress ipStored ( 192, 168, 254, 154 ); //IP hardcodeada para cuando se resetea de fábrica
 
@@ -40,9 +33,9 @@ byte macDef [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 const int periodoDHT = 2000;
 unsigned long millisDHT = 0;
 unsigned long millisPan = 0;
-unsigned long millisZmpt = 0;
+unsigned long millisMuestrasAnalog = 0;
 
-const int periodoZmpt = 1000;
+const int periodoMuestrasAnalog = 1000;
 const int periodoPan = (int) 30000;             
 bool flagErrorSD = 0;
 
@@ -51,7 +44,14 @@ void setup()
     Serial.begin (9600);
     data.ipDef = ipStored;
     
+    pinMode ( pin.pinZmpt, INPUT );
     _zmpt.setWindowSecs ( 40.0/50 );
+    for ( int i=0; i<N; i++ )
+    {
+        pinMode ( pin.ACS [i], INPUT );
+        _ACS [i].setWindowSecs ( 40.0/50 );
+    }
+
     SD.end ();
     delay (100);
     if ( !SD.begin (pin.pinSD) ) 
@@ -80,21 +80,18 @@ void setup()
 
 void loop() 
 {
-    _zmpt.input ( analogRead ( A0 ) );
 
     funDHT ();
     funPul ();
-    funACS ();
-    
-    _zmpt.input ( analogRead ( A0 ) );
+    funAnalog ();
     
     funPantalla ();
 
-    _zmpt.input ( analogRead ( A0 ) );
-    if ( millis () - millisZmpt >= 5000 )
+    _zmpt.input ( analogRead ( A13 ) );
+    if ( millis () - millisZmpt >= 3000 )
     {
         millisZmpt = millis ();
-        float aux = 1.34*(_zmpt.sigma ()-2.0);
+        float aux = 1*(_zmpt.sigma ()-0.0);
         data.tension = aux;
     }
 
@@ -118,7 +115,7 @@ void loop()
             _server.load ();
             break;
     }
-    if ( retorno != -1 ) _zmpt.input ( analogRead (A0) );
+    if ( retorno != -1 ) _zmpt.input ( analogRead (A13) );
     if ( retorno ) guardarSD ();
 }
 
@@ -146,7 +143,7 @@ void funPul ()
             guardarSD ();
         }
     }
-    for ( int i=0; i<5; i++ ) if ( _pulsadores.checkMenu (i) )
+    for ( int i=0; i<4; i++ ) if ( _pulsadores.checkMenu (i) )
     {
         millisPan = millis ();
         switch ( i )
@@ -209,7 +206,7 @@ void funPantalla ()
     unsigned long a = millis ();
     if ( millis ()-millisPan>=periodoPan && _pantalla.flagSelec == 0 ) _pantalla.pantallaSelec = 0; //Si se supera el tiempo del timer se apaga la pantalla
     
-    if ( _pantalla.pantallaSelec ) _zmpt.input ( analogRead ( A0 ) );
+    if ( _pantalla.pantallaSelec ) _zmpt.input ( analogRead ( A13 ) );
     
     switch ( _pantalla.pantallaSelec )
     {
@@ -343,10 +340,16 @@ void crearSDdefecto ()
     config.close ();
 }
 
-void funACS ()
+void funAnalog ()
 {
     unsigned long a = millis ();
-    for ( int i=0; i<5; i++ ) if ( data.estTomas [i] == 1 ) data.corriente [i] = _ACS [i].mA_AC ()/1000.0;
+    for ( int i=0; i<N; i++ ) _ACS [i].input ( analogRead (pin.ACS [i]) ); 
+    _zmpt.input ( analogRead ( pin.pinZmpt ) );
+
+    if ( millis () - millisAnlog >= periodoAnalog )
+    {
+        
+    }
     Serial.print ( "ACS:  " );
     Serial.println ( millis () - a );
 }

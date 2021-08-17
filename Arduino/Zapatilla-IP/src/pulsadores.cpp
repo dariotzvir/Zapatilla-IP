@@ -7,8 +7,8 @@ pulsadores::pulsadores ( PINES &pin )
 
 void pulsadores::begin ()
 {
-    for ( int i=0; i<5; i++ )  pinMode ( pin->pulMenu [i], INPUT_PULLUP );
-    for ( int i=0; i<5; i++ )  pinMode ( pin->pulTomas [i], INPUT_PULLUP );
+    for ( int i=0; i<4; i++ )  pinMode ( pin->pulMenu [i], INPUT_PULLUP );
+    for ( int i=0; i<N; i++ )  pinMode ( pin->pulTomas [i], INPUT_PULLUP );
 }
 bool pulsadores::checkTomas ( int p )
 {

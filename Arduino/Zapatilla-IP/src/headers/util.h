@@ -45,16 +45,21 @@ struct DATA
     int puerto = 80;
     byte mac [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
     IPAddress ipDef;
+
+    float yCalib = 0.6
 };
 
 struct PINES
 {
-    const int tomas [N] = { 33, 34, 37, 38, 41 };
-    const int pulTomas [N] = { 22, 25, 26, 29, 30 };
+    const int tomas [N] = { 28, 29, 30, 31, 32 };
+    const int leds [N] = { 34, 35, 36, 37, 38 };
+    const int pulTomas [N] = { 22, 23, 24, 25, 26 };
     const int ACS [N] = { A8, A9, A10, A11, A12 };
 
-    const int pulMenu [5] = { 49, 45, 46, 42, 18 }; //ONOFF ENT DER IZQ RST
+    const int pulMenu [4] = { 43, 41, 42, 40 }; //ONOFF ENT DER IZQ
     
+    const int pinZmpt = A13;
+    const int pinRst = 18;
     const int pinTension = A13;
     const int pinSD = 4;
     const int pinDHT = 19;
