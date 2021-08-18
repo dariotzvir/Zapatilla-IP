@@ -33,24 +33,17 @@ byte macDef [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 const int periodoDHT = 2000;
 unsigned long millisDHT = 0;
 unsigned long millisPan = 0;
-unsigned long millisMuestrasAnalog = 0;
+unsigned long millisAnalog = 0;
 
-const int periodoMuestrasAnalog = 1000;
+const int periodoAnalog = 1000;
 const int periodoPan = (int) 30000;             
 bool flagErrorSD = 0;
 
+unsigned long a = 0;
+
 void setup() 
-{                   
+{         
     Serial.begin (9600);
-    data.ipDef = ipStored;
-    
-    pinMode ( pin.pinZmpt, INPUT );
-    _zmpt.setWindowSecs ( 40.0/50 );
-    for ( int i=0; i<N; i++ )
-    {
-        pinMode ( pin.ACS [i], INPUT );
-        _ACS [i].setWindowSecs ( 40.0/50 );
-    }
 
     SD.end ();
     delay (100);
@@ -61,20 +54,29 @@ void setup()
     }
     else cargarSD ();
 
+    _pantalla.setup (); 
+    _pantalla.pantallaBoot ();
+    
+    data.ipDef = ipStored;
+
     for ( int i : data.mac )Serial.println ( i, 16 );
     server _aux (data); //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado (80)
-
-    _pantalla.setup (); 
-    _pantalla.pantallaBoot ();
-
     _server.setup (); 
 
     _tomas.begin ();
     _pulsadores.begin ();
     _dht.begin ();
 
-    for ( int i=0; i<5; i++ ) _ACS [ i ].autoMidPoint ();
+    pinMode ( pin.pinZmpt, INPUT );
+    _zmpt.setWindowSecs ( 70.0/50 );
+    for ( int i=0; i<N; i++ )
+    {
+        pinMode ( pin.ACS [i], INPUT );
+        _ACS [i].setWindowSecs ( 40.0/50 );
+    }
+
+    //for ( int i=0; i<5; i++ ) _ACS [ i ].autoMidPoint ();
     _pantalla.pantallaPrincipal ();
 }
 
@@ -84,17 +86,9 @@ void loop()
     funDHT ();
     funPul ();
     funAnalog ();
-    
     funPantalla ();
 
-    _zmpt.input ( analogRead ( A13 ) );
-    if ( millis () - millisZmpt >= 3000 )
-    {
-        millisZmpt = millis ();
-        float aux = 1*(_zmpt.sigma ()-0.0);
-        data.tension = aux;
-    }
-
+    //unsigned long d = millis ();
     int retorno = _server.rutina ();
     switch ( retorno )
     {
@@ -115,8 +109,9 @@ void loop()
             _server.load ();
             break;
     }
-    if ( retorno != -1 ) _zmpt.input ( analogRead (A13) );
+    //if ( retorno != -1 ) _zmpt.input ( analogRead (A13) );
     if ( retorno ) guardarSD ();
+    //if ( retorno != -1 ) Serial.println ( "Server: " + String ( millis () - d ) );
 }
 
 void funDHT ()
@@ -203,10 +198,10 @@ void funPantalla ()
         7 -- Menú de estado de la tarjeta SD
         8 -- Panatalla de reset
     */
-    unsigned long a = millis ();
+    //unsigned long b = millis ();
     if ( millis ()-millisPan>=periodoPan && _pantalla.flagSelec == 0 ) _pantalla.pantallaSelec = 0; //Si se supera el tiempo del timer se apaga la pantalla
     
-    if ( _pantalla.pantallaSelec ) _zmpt.input ( analogRead ( A13 ) );
+    //if ( _pantalla.pantallaSelec ) _zmpt.input ( analogRead ( A13 ) );
     
     switch ( _pantalla.pantallaSelec )
     {
@@ -223,8 +218,8 @@ void funPantalla ()
             _pantalla.menu ( Ethernet.localIP (), flagErrorSD ); //Todaas las pantallas del menu en funcion de que pantalla se pasa
             break;
     }
-    Serial.print ( "Oled:  " );
-    Serial.println ( millis ()-a );
+    //Serial.print ( "Oled:  " );
+    //Serial.println ( millis ()-b );
 }
 
 void reset ()
@@ -263,8 +258,9 @@ void cargarSD ()
     if ( SD.exists ("config.txt") )
     {
         Serial.println ( "Si hay archivo" );
-        File config = SD.open ( "config.txt" );
+        File config = SD.open ( "config.txt", FILE_READ );
         deserializeJson ( configJson, config );
+        Serial.println ( config.readStringUntil ('\0') );
         config.close ();
 
         byte aux [4];
@@ -342,14 +338,24 @@ void crearSDdefecto ()
 
 void funAnalog ()
 {
-    unsigned long a = millis ();
+    //Serial.print ( "Tiempo entre muestras: " );
+    //Serial.println ( millis ()-a );
+
     for ( int i=0; i<N; i++ ) _ACS [i].input ( analogRead (pin.ACS [i]) ); 
     _zmpt.input ( analogRead ( pin.pinZmpt ) );
-
-    if ( millis () - millisAnlog >= periodoAnalog )
+    
+    a = millis ();
+    
+    if ( millis () - millisAnalog >= 1500 )
     {
-        
+        millisAnalog = millis ();
+        //unsigned long c = micros ();
+
+        for ( int i=0; i<N; i++ ) data.corriente [i] = data.sensACS*(_ACS [i].sigma ()-data.yCalibACS);
+        data.tension = data.sensZMPT*(_zmpt.sigma ()-data.yCalibZMPT);
+
+        //for ( int i=0; i<N; i++ ) Serial.println (data.corriente [i]);
+        //Serial.print ( "Tiempo de calculo: " );
+        //Serial.println ( micros ()- c );
     }
-    Serial.print ( "ACS:  " );
-    Serial.println ( millis () - a );
 }

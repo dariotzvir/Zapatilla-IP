@@ -46,7 +46,11 @@ struct DATA
     byte mac [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
     IPAddress ipDef;
 
-    float yCalib = 0.6
+    const float yCalibACS = 0.6;
+    const float sensACS = 0.0586;
+
+    const float yCalibZMPT = 0;
+    const float sensZMPT = 1.31;
 };
 
 struct PINES
@@ -60,8 +64,7 @@ struct PINES
     
     const int pinZmpt = A13;
     const int pinRst = 18;
-    const int pinTension = A13;
-    const int pinSD = 4;
+    int pinSD = 4;
     const int pinDHT = 19;
 };
 
