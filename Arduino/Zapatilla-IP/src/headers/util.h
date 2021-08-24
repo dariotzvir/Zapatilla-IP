@@ -57,10 +57,10 @@ struct PINES
 {
     const int tomas [N] = { 28, 29, 30, 31, 32 };
     const int leds [N] = { 34, 35, 36, 37, 38 };
-    const int pulTomas [N] = { 22, 23, 24, 25, 26 };
+    const int pulTomas [N] = { 26, 25, 24, 23, 22 };
     const int ACS [N] = { A8, A9, A10, A11, A12 };
 
-    const int pulMenu [4] = { 43, 41, 42, 40 }; //ONOFF ENT DER IZQ
+    const int pulMenu [4] = { 40,42,41,43 }; //ONOFF ENT DER IZQ
     
     const int pinZmpt = A13;
     const int pinRst = 18;

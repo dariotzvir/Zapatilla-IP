@@ -44,7 +44,7 @@ unsigned long a = 0;
 void setup() 
 {         
     Serial.begin (9600);
-
+    Serial.println ("boot");
     SD.end ();
     delay (100);
     if ( !SD.begin (pin.pinSD) ) 
@@ -53,10 +53,10 @@ void setup()
         flagErrorSD = 1;
     }
     else cargarSD ();
-
+Serial.println ("boot");
     _pantalla.setup (); 
     _pantalla.pantallaBoot ();
-    
+    Serial.println ("boot");
     data.ipDef = ipStored;
 
     for ( int i : data.mac )Serial.println ( i, 16 );
@@ -260,7 +260,7 @@ void cargarSD ()
         Serial.println ( "Si hay archivo" );
         File config = SD.open ( "config.txt", FILE_READ );
         deserializeJson ( configJson, config );
-        Serial.println ( config.readStringUntil ('\0') );
+        if ( config )while (config.available () )Serial.println ( config.read () );
         config.close ();
 
         byte aux [4];
