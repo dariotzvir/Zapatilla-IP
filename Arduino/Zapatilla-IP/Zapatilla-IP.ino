@@ -26,9 +26,8 @@ pantallaOLED _pantalla ( data );
 server _server ( data );
 RunningStatistics _zmpt;
 RunningStatistics _ACS [N];
-StaticJsonDocument <300> configJson;
 IPAddress ipStored ( 192, 168, 254, 154 ); //IP hardcodeada para cuando se resetea de fábrica
-
+StaticJsonDocument <300> configJson;
 byte macDef [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 const int periodoDHT = 2000;
 unsigned long millisDHT = 0;
@@ -44,23 +43,25 @@ unsigned long a = 0;
 void setup() 
 {         
     Serial.begin (9600);
-    Serial.println ("boot");
-    SD.end ();
-    delay (100);
-    if ( !SD.begin (pin.pinSD) ) 
+
+    if ( !SD.begin (4) ) 
     {
         Serial.println ("SD falla");
         flagErrorSD = 1;
     }
-    else cargarSD ();
-Serial.println ("boot");
+    else 
+    {
+        Serial.println ( "Carga Sd" );
+        cargarSD ();
+    }
+    Serial.println ( "Sale SD" );
+    
     _pantalla.setup (); 
     _pantalla.pantallaBoot ();
-    Serial.println ("boot");
     data.ipDef = ipStored;
 
     for ( int i : data.mac )Serial.println ( i, 16 );
-    server _aux (data); //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
+    server _aux (data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado (80)
     _server.setup (); 
 
@@ -76,13 +77,12 @@ Serial.println ("boot");
         _ACS [i].setWindowSecs ( 40.0/50 );
     }
 
-    //for ( int i=0; i<5; i++ ) _ACS [ i ].autoMidPoint ();
     _pantalla.pantallaPrincipal ();
+    
 }
 
 void loop() 
 {
-
     funDHT ();
     funPul ();
     funAnalog ();
@@ -110,7 +110,7 @@ void loop()
             break;
     }
     //if ( retorno != -1 ) _zmpt.input ( analogRead (A13) );
-    if ( retorno ) guardarSD ();
+    if ( retorno > 0 ) guardarSD ();
     //if ( retorno != -1 ) Serial.println ( "Server: " + String ( millis () - d ) );
 }
 
@@ -234,6 +234,8 @@ void guardarSD ()
 {
     if ( flagErrorSD==0 )
     {
+        
+        configJson.clear ();
         for ( int i=0; i<4; i++ ) configJson ["ipDef"][i] = data.ipDef [i];
         configJson ["tempMax"] = data.tempMax;
         configJson ["tempMin"] = data.tempMin;
@@ -248,7 +250,10 @@ void guardarSD ()
 
         if ( SD.exists ("config.txt") ) SD.remove ("config.txt");
         File config = SD.open ( "config.txt", FILE_WRITE );
-        serializeJsonPretty ( configJson, config );
+        String buffer = "";
+        serializeJsonPretty ( configJson, buffer );
+        Serial.println ( "Buffer JSON" );
+        Serial.println ( buffer );
         config.close ();
     }  
 }
@@ -257,57 +262,73 @@ void cargarSD ()
 {   
     if ( SD.exists ("config.txt") )
     {
+        configJson.clear ();
         Serial.println ( "Si hay archivo" );
-        File config = SD.open ( "config.txt", FILE_READ );
-        deserializeJson ( configJson, config );
-        if ( config )while (config.available () )Serial.println ( config.read () );
+        File config = SD.open ( "config.txt" );
+
+        DeserializationError error = deserializeJson ( configJson, config );
         config.close ();
+        
+        Serial.println ( error.c_str () );
+
+        if ( error )
+        {
+            crearSDdefecto ();
+            return;
+        }
 
         byte aux [4];
 
-        if ( configJson.containsKey ("ipDef") )
-        {
-            for ( int i=0; i<4; i++ ) aux [i] = configJson ["ipDef"][i];
-            data.ipDef = aux;
-        }
-        if ( configJson.containsKey ("puerto") ) data.puerto = configJson ["puerto"];
+        for ( int i=0; i<4; i++ ) aux [i] = configJson ["ipDef"][i];
+        data.ipDef = aux;
+        
+        data.puerto = configJson ["puerto"];
 
-        if ( configJson.containsKey ("dhcp") ) data.dhcp = configJson ["dhcp"];
+        data.dhcp = configJson ["dhcp"];
 
-        if ( configJson.containsKey ("tempMax") ) 
-        {
-            data.tempMax = configJson ["tempMax"];
-            if ( data.tempMax > 125 || data.tempMax < -40 ) data.tempMax = 125;
-        }
-        if ( configJson.containsKey ("tempMin") )
-        {
-            data.tempMin = configJson ["tempMin"];
-            if ( data.tempMin > data.tempMax || data.tempMin < -40 ) data.tempMin = -40;
-        }
+        data.tempMax = configJson ["tempMax"];
+        if ( data.tempMax > 125 || data.tempMax < -40 ) data.tempMax = 125;
+        
+        data.tempMin = configJson ["tempMin"];
+        if ( data.tempMin > data.tempMax || data.tempMin < -40 ) data.tempMin = -40;
         else data.tempMin = data.tempMax;
 
-        if ( configJson.containsKey ("estado")  )
+        for ( int i=0; i<N; i++ ) 
         {
-            for ( int i=0; i<N; i++ ) 
-            {
-                data.estTomas [i] = configJson ["estado"][i];
-                _tomas.conm ( i, data.estTomas [i] );
-            }
+            data.estTomas [i] = configJson ["estado"][i];
+            _tomas.conm ( i, data.estTomas [i] );
         }
 
-        if ( configJson.containsKey ( "mac" ) ) for ( int i=0; i<6; i++ ) data.mac [i] = (int) configJson ["mac"][i];
+        for ( int i=0; i<6; i++ ) data.mac [i] = (int) configJson ["mac"][i];
 
+        String u = configJson ["usuario"];
+        data.usuario = u;
+        String c = configJson ["clave"];
+        data.clave = c; 
 
-        if ( configJson.containsKey ("usuario") ) 
-        {
-            String u = configJson ["usuario"];
-            data.usuario = u;
-        }
-        if ( configJson.containsKey ("clave") ) 
-        {
-            String c = configJson ["clave"];
-            data.clave = c; 
-        }
+        Serial.print ( "Tempmax: " );
+        Serial.println ( (int) configJson ["tempMax"] );
+        Serial.print ( "Tempmin: " );
+        Serial.println ( (int) configJson ["tempMin"]);
+        Serial.print ( "DHCP: " );
+        Serial.println ( (int) configJson ["dhcp"] );
+        Serial.print ( "Puerto: " );
+        Serial.println ( (int) configJson ["puerto"] );
+
+        Serial.print ( "Usuario: " );
+        String uu = configJson ["usuario"];
+        Serial.println ( uu );
+
+        Serial.print ( "Clave: " );
+        String cc = configJson ["clave"];
+        Serial.println ( cc );
+
+        Serial.print ( "Estado: " );
+        for ( int i=0; i<N; i++ ) Serial.println ( (int) configJson ["estTomas"][i] );
+        Serial.print ( "Mac: " );
+        for ( int i=0; i<6; i++ ) Serial.println ( (int) configJson ["mac"][i] );
+        Serial.print ( "ipDef: " );
+        for ( int i=0; i<4; i++ ) Serial.println ( (int) configJson ["ipDef"][i] );
     }
     else 
     {
@@ -318,10 +339,11 @@ void cargarSD ()
 
 void crearSDdefecto ()
 {
+    configJson.clear ();
     for ( int i=0; i<4; i++ ) configJson ["ipDef"][i] = ipStored [i];
     configJson ["tempMax"] = 125;
     configJson ["tempMin"] = -40;
-    configJson ["dhcp"] = 1;
+    configJson ["dhcp"] = 0;
     configJson ["puerto"] = 80;
 
     configJson ["usuario"] = "admin";
