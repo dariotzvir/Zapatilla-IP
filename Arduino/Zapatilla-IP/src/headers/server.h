@@ -51,7 +51,6 @@ class server: EthernetServer
         String lecturaServer ( int );
         String encodeIp ( IPAddress & );
         String encodeTomas ( bool *, float * );
-        String encodeMac ( byte * );
 
         int leerTemp ( String &, int );
         bool comprobarTempBoundaries ( String &, int, int );

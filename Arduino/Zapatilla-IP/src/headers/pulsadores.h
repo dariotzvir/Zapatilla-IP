@@ -8,6 +8,8 @@
 #define N 5
 #endif
 
+#define PERIODODEF 100
+
 class pulsadores
 {
     public: 
@@ -22,7 +24,7 @@ class pulsadores
         bool flagTomas [5] = {0};
         bool flagMenu [5] = {0};   //T1, T2, T3, T4, T5, ON, ENT, DER, IZQ
         unsigned long tDer = 0, tIzq = 0;
-        const int periodo = 100;
+        int periodo = PERIODODEF;
         PINES *pin;
 };
 

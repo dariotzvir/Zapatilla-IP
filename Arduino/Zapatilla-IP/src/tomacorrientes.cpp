@@ -20,7 +20,6 @@ void tomacorrientes::invertir ( int p )
 {
     data->estTomas [p] = !data->estTomas [p];
     conm ( p, data->estTomas [p] );
-    //digitalWrite ( pines [p], *( est + p ) );
 }
 void tomacorrientes::conm ( int p, bool estado )
 { 

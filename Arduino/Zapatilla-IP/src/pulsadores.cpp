@@ -22,33 +22,35 @@ bool pulsadores::checkTomas ( int p )
     {
         flagTomas [p] = 0;
     }
-    //for ( int i = 0 ; i < 5 ; i++ ) Serial.print ( flagTomas [i] );
-    //Serial.println ("");
     return retorno;
 }
 bool pulsadores::checkMenu ( int p )
 {
     bool retorno = 0;
-    //Serial.print ( "toma " );
-    //Serial.println ( p );
+    if ( !digitalRead ( pin->pulMenu [p] ) && !flagMenu [p] )
+    {
+        flagMenu [p] = 1;
+        retorno = 1;
+    }
+    else if ( digitalRead ( pin->pulMenu [p] ) && flagMenu [p] )
+    {
+        flagMenu [p] = 0;
+        periodo = PERIODODEF;
+    }
     if ( flagTimer )
     {
-        if ( flagMenu [3] && millis ()- tDer >= periodo ) 
-        {
-            tDer = millis ();
-            flagMenu [3] = 0;
-        }
-        if ( flagMenu [2] && millis ()- tIzq >= periodo )
+        if ( flagMenu [IZQ] && millis - tIzq >= periodo )
         {
             tIzq = millis ();
-            flagMenu [2] = 0;
-        } 
+            periodo = periodo*0.95;
+            retorno = 1;
+        }
+        if ( flagMenu [DER] && millis () - tDer >= periodo )
+        {
+            tDer = millis ();
+            periodo = periodo*0.95;
+            retorno = 1;
+        }
     }
-    if ( !digitalRead ( pin->pulMenu [p] ) && !flagMenu [p] ) 
-    {
-        flagMenu [p] = 1;     
-        retorno = 1;
-    }   
-    else if ( digitalRead ( pin->pulMenu [p] ) && flagMenu [p] ) flagMenu [p] = 0;
     return retorno;
 }

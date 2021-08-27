@@ -22,6 +22,7 @@ class pantallaOLED: public Adafruit_SSD1306
         void menu ( IPAddress, bool );
         void pantallaReset ();
         void pantallaBoot ();
+        void pantallaMAC ();
 
         void logicaDer ();
         void logicaIzq ();

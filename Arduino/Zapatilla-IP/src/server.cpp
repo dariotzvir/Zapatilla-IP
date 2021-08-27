@@ -28,10 +28,14 @@ void server::load ()
     
     if ( data->dhcp == 1 ) 
     {
+        #ifdef DEBUGDHCP
         Serial.println ( "DHCP" );
+        #endif
         if ( Ethernet.begin ( data->mac ) == 0 ) 
         {
+            #ifdef DEBUGDHCP
             Serial.println ( "Falla DHCP" );
+            #endif
             Ethernet.begin ( data->mac, data->ipDef );
             data->dhcp = 0;
         }
@@ -60,8 +64,9 @@ int server::rutina ()
             {
                 c = cmdCliente.read ();
                 if ( tipoPeticion == 0 ) tipoPeticion = c;
-
+                #ifdef DEBUGPET
                 Serial.print ( c );
+                #endif
                 if ( header.length () < 100 ) header += c;
             }
 
@@ -139,7 +144,9 @@ bool server::checkLogin ( int index )
     if ( cmd.compareTo ( aux ) == 0 ) //Chequea si son iguales
     {
         header.remove ( index+1, aux.length () ); //Remueve el sector de contraseña y usuario así se pueden utiliza los metodos que ya tenía escritos
+        #ifdef DEBUGPET
         Serial.println ( header );
+        #endif
         return 1;
     }
     return 0;
@@ -164,9 +171,8 @@ String server::lecturaServer ( int index )
         jsonRequest ["dhcp"] = data->dhcp;
         jsonRequest ["ipDef"] = data->puerto;
 
-        jsonRequest ["mac"] = encodeMac ( data->mac );
-        jsonRequest ["ipDef"] = encodeIp ( data->ipDef );
-
+        jsonRequest ["mac"] = data->macString;
+        jsonRequest ["ipDef"] = data->ipString;
         for ( int i=0; i<N; i++ )jsonRequest ["estTomas"][i] = data->estTomas [i];
         for ( int i=0; i<N; i++ )jsonRequest ["corriente"][i] = data->corriente [i];
 
@@ -181,8 +187,8 @@ String server::lecturaServer ( int index )
     if ( checkStr ( index, "?dhcp" ) ) retorno = (data->dhcp ? "Si" : "No");
     if ( checkStr ( index, "?puerto" ) ) retorno = data->puerto;
 
-    if ( checkStr ( index, "?ipdef" ) ) retorno = encodeIp (data->ipDef);
-    if ( checkStr ( index, "?mac" ) ) retorno = encodeMac (data->mac);
+    if ( checkStr ( index, "?ipdef" ) ) retorno = data->ipString;
+    if ( checkStr ( index, "?mac" ) ) retorno = data->macString;
     if ( checkStr ( index, "?tomas" ) ) retorno =  encodeTomas ( data->estTomas, data->corriente );
     
     return retorno;
@@ -198,7 +204,9 @@ String server::comandoServerGET ( int index )
         int fin = header.indexOf ( "HTTP" );
 
         String aux = header.substring ( index+5, fin );
+        #ifdef DEBUGPET
         Serial.println ( aux );
+        #endif
         byte macAux [6] = {0};
         int c = 0;
         byte buffer = 0;
@@ -218,15 +226,20 @@ String server::comandoServerGET ( int index )
         }
         if ( c!=6 ) return ERRORPET;
 
-        /*for ( int i=0 ; i<6; i++ ) Serial.println ( macAux[i], 16 );
+        #ifdef DEBUGMAC
+        for ( int i=0 ; i<6; i++ ) Serial.println ( macAux[i], 16 );
         Serial.println ( "\n" );
 
         for ( int i=0 ; i<6; i++ ) Serial.println ( macAux[i] );
-        Serial.println ( "\n" );*/
+        Serial.println ( "\n" );
+        #endif
 
         for ( int i=0; i<6; i++ ) data->mac [i] = macAux [i];
+        data->actMacString ();
         
-        Serial.println ( encodeMac (data->mac) );
+        #ifdef DEBUGMAC
+        Serial.println ( encodeMac (data->macString () );
+        #endif
 
         retornoRutina = 7;
         return GUARDADO;
@@ -276,6 +289,8 @@ String server::comandoServerGET ( int index )
         if ( aux.fromString ( header.substring ( index+7, fin ) ) == 0 ) return FUERARANGO;
 
         data->ipDef = aux;
+        data->actIpString ();
+
         if ( data->dhcp == 0 ) retornoRutina = 3;
         return GUARDADO;
     }
@@ -378,18 +393,6 @@ bool server::comprobarTempBoundaries ( String &header, int temp, int index )
     return 1;
 }
 
-String server::encodeMac ( byte *mac )
-{
-    String aux = "";
-    for ( int i = 0 ; i < 6 ; i++ ) 
-    {
-        String aux2 = String ( *( mac + i ), HEX );
-        aux2.toUpperCase ();
-        aux += aux2 + ' ';
-    }
-    return aux;
-}
-
 String server::encodeTomas ( bool *estTomas, float *corriente )
 {
     String aux = "";
@@ -402,8 +405,6 @@ String server::encodeTomas ( bool *estTomas, float *corriente )
     }
     return aux;
 }
-
-String server::encodeIp ( IPAddress &aux ) { return ( String ( aux [0] ) + '.' + String ( aux [1] ) + '.' + String ( aux [2] ) + '.' + String ( aux [3] ) ); }
 
 void server::checkDHCP ()
 {
@@ -423,7 +424,9 @@ void server::checkDHCP ()
     */
     if ( millis () - millisDHCP >= periodoDHCP ) 
     {
+        #ifdef DEBUGDHCP
         Serial.println ( "Check DHCP" );
+        #endif
         millisDHCP = millis ();
         int retorno = Ethernet.maintain ();
         if ( retorno == 0 || retorno == 1 || retorno == 3 )
@@ -436,7 +439,9 @@ void server::checkDHCP ()
             millisDHCP = millis ();
             contErrorDHCP = 0;
         }
+        #ifdef DEBUGDHCP
         Serial.println ( "Check DHCP retorno: " + String ( retorno ) );
+        #endif
     }
 }
 

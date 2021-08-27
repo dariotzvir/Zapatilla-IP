@@ -165,14 +165,14 @@ void pantallaOLED::menu ( IPAddress localHost, bool flagSD )
         case 2:
             print ( "Temp Min:" );   
             setTextColor ( WHITE );
-            setCursor ( 4 , 28 );
+            setCursor ( 4 , 27 );
             print ( bufferTempMin );
 
             break;
         case 3:
             print ( "Temp Max:" );   
             setTextColor ( WHITE );  
-            setCursor ( 4 , 28 );
+            setCursor ( 4 , 27 );
             print ( bufferTempMax );
 
             break;
@@ -202,7 +202,7 @@ void pantallaOLED::menu ( IPAddress localHost, bool flagSD )
             print ( "IP fija:" ); 
             setTextSize ( 1 );
             setCursor ( 4 , 30 );
-            print ( data->ipDef );
+            print ( data->ipString );
             print ( ":" );
             print ( data->puerto );
 
@@ -211,6 +211,18 @@ void pantallaOLED::menu ( IPAddress localHost, bool flagSD )
             break;
             
         case 7:
+            print ( "MAC: " );
+            setTextSize ( 1 );
+            setCursor ( 4 , 25 );
+            for ( int i=0; i<20; i++ ) print ( data->macString [i] );
+            setCursor ( 4 , 35 );
+            for ( int i=20; i<30; i++ ) print ( data->macString [i] );
+            
+            setTextSize ( 2 );
+
+            break;
+
+        case 8:
             print ( "SD: " );
             setCursor ( 4 , 27 );
             print ( flagSD ? "Error" : "OK" );

@@ -7,6 +7,10 @@
 #include <avr/wdt.h>
 
 #define N 5
+//#define DEBUGSD
+//#define DEBUGMAC
+//#define DEBUGDHCP
+//#define DEBUGPET
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
@@ -46,24 +50,36 @@ void setup()
 
     if ( !SD.begin (4) ) 
     {
+        #ifdef DEBUGSD
         Serial.println ("SD falla");
+        #endif
         flagErrorSD = 1;
     }
     else 
     {
-        Serial.println ( "Carga Sd" );
+        #ifdef DEBUGSD
+        Serial.println ("SD carga");
+        #endif
         cargarSD ();
     }
-    Serial.println ( "Sale SD" );
     
     _pantalla.setup (); 
     _pantalla.pantallaBoot ();
     data.ipDef = ipStored;
 
-    for ( int i : data.mac )Serial.println ( i, 16 );
+    #ifdef DEBUGMAC
+    for ( int i : data.mac ) Serial.println ( i, 16 );
+    #endif
+    
     server _aux (data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado (80)
     _server.setup (); 
+    data.actIpString ();
+    data.actMacString ();
+    #ifdef DEBUGMAC
+    Serial.println ( "Debug MAC:" );
+    Serial.println ( data.macString );
+    #endif
 
     _tomas.begin ();
     _pulsadores.begin ();
@@ -71,14 +87,14 @@ void setup()
 
     pinMode ( pin.pinZmpt, INPUT );
     _zmpt.setWindowSecs ( 70.0/50 );
+
     for ( int i=0; i<N; i++ )
     {
         pinMode ( pin.ACS [i], INPUT );
-        _ACS [i].setWindowSecs ( 40.0/50 );
+        _ACS [i].setWindowSecs ( 70.0/50 );
     }
 
     _pantalla.pantallaPrincipal ();
-    
 }
 
 void loop() 
@@ -87,31 +103,7 @@ void loop()
     funPul ();
     funAnalog ();
     funPantalla ();
-
-    //unsigned long d = millis ();
-    int retorno = _server.rutina ();
-    switch ( retorno )
-    {
-        case 1:
-            _pantalla.bufferTempMax = data.tempMax;
-            _pantalla.bufferTempMin = data.tempMin;
-            break;
-        case 2:
-            for ( int i=0; i<5; i++ ) _tomas.conm ( i, data.estTomas [i] );
-            break;
-        case 3:
-            delay (10);
-            _server.load ();
-            break;
-        case 4:
-            server _aux (data); 
-            _server = _aux; 
-            _server.load ();
-            break;
-    }
-    //if ( retorno != -1 ) _zmpt.input ( analogRead (A13) );
-    if ( retorno > 0 ) guardarSD ();
-    //if ( retorno != -1 ) Serial.println ( "Server: " + String ( millis () - d ) );
+    funServer ();
 }
 
 void funDHT ()
@@ -198,11 +190,7 @@ void funPantalla ()
         7 -- Menú de estado de la tarjeta SD
         8 -- Panatalla de reset
     */
-    //unsigned long b = millis ();
     if ( millis ()-millisPan>=periodoPan && _pantalla.flagSelec == 0 ) _pantalla.pantallaSelec = 0; //Si se supera el tiempo del timer se apaga la pantalla
-    
-    //if ( _pantalla.pantallaSelec ) _zmpt.input ( analogRead ( A13 ) );
-    
     switch ( _pantalla.pantallaSelec )
     {
         case APAGADA: 
@@ -215,11 +203,9 @@ void funPantalla ()
             _pantalla.pantallaReset (); //Pantalla de reset, no necesita otra cosa
             break;
         default:
-            _pantalla.menu ( Ethernet.localIP (), flagErrorSD ); //Todaas las pantallas del menu en funcion de que pantalla se pasa
+            _pantalla.menu ( Ethernet.localIP (), flagErrorSD ); //Todas las pantallas del menu en funcion de que pantalla se pasa
             break;
     }
-    //Serial.print ( "Oled:  " );
-    //Serial.println ( millis ()-b );
 }
 
 void reset ()
@@ -234,8 +220,8 @@ void guardarSD ()
 {
     if ( flagErrorSD==0 )
     {
-        
         configJson.clear ();
+
         for ( int i=0; i<4; i++ ) configJson ["ipDef"][i] = data.ipDef [i];
         configJson ["tempMax"] = data.tempMax;
         configJson ["tempMin"] = data.tempMin;
@@ -250,10 +236,17 @@ void guardarSD ()
 
         if ( SD.exists ("config.txt") ) SD.remove ("config.txt");
         File config = SD.open ( "config.txt", FILE_WRITE );
+        
+        #ifdef DEBUGSD
         String buffer = "";
         serializeJsonPretty ( configJson, buffer );
+        config.print ( buffer );
         Serial.println ( "Buffer JSON" );
         Serial.println ( buffer );
+        #else 
+        serializeJsonPretty ( configJson, config );
+        #endif
+
         config.close ();
     }  
 }
@@ -263,13 +256,15 @@ void cargarSD ()
     if ( SD.exists ("config.txt") )
     {
         configJson.clear ();
-        Serial.println ( "Si hay archivo" );
         File config = SD.open ( "config.txt" );
 
         DeserializationError error = deserializeJson ( configJson, config );
         config.close ();
         
+        #ifdef DEBUGSD
+        Serial.println ( "Si hay archivo" );
         Serial.println ( error.c_str () );
+        #endif
 
         if ( error )
         {
@@ -291,7 +286,7 @@ void cargarSD ()
         
         data.tempMin = configJson ["tempMin"];
         if ( data.tempMin > data.tempMax || data.tempMin < -40 ) data.tempMin = -40;
-        else data.tempMin = data.tempMax;
+        //else data.tempMin = data.tempMax;
 
         for ( int i=0; i<N; i++ ) 
         {
@@ -306,6 +301,7 @@ void cargarSD ()
         String c = configJson ["clave"];
         data.clave = c; 
 
+        #ifdef DEBUGSD
         Serial.print ( "Tempmax: " );
         Serial.println ( (int) configJson ["tempMax"] );
         Serial.print ( "Tempmin: " );
@@ -329,10 +325,13 @@ void cargarSD ()
         for ( int i=0; i<6; i++ ) Serial.println ( (int) configJson ["mac"][i] );
         Serial.print ( "ipDef: " );
         for ( int i=0; i<4; i++ ) Serial.println ( (int) configJson ["ipDef"][i] );
+        #endif
     }
     else 
     {
-        Serial.println ( "No archivo SD" );
+        #ifdef DEBUGSD
+            Serial.println ( "No archivo SD" );
+        #endif
         crearSDdefecto (); //Si no se tiene un archivo se crea uno por defecto con todos los valores de la flash
     }
 }
@@ -340,6 +339,7 @@ void cargarSD ()
 void crearSDdefecto ()
 {
     configJson.clear ();
+
     for ( int i=0; i<4; i++ ) configJson ["ipDef"][i] = ipStored [i];
     configJson ["tempMax"] = 125;
     configJson ["tempMin"] = -40;
@@ -360,24 +360,38 @@ void crearSDdefecto ()
 
 void funAnalog ()
 {
-    //Serial.print ( "Tiempo entre muestras: " );
-    //Serial.println ( millis ()-a );
-
     for ( int i=0; i<N; i++ ) _ACS [i].input ( analogRead (pin.ACS [i]) ); 
     _zmpt.input ( analogRead ( pin.pinZmpt ) );
-    
-    a = millis ();
     
     if ( millis () - millisAnalog >= 1500 )
     {
         millisAnalog = millis ();
-        //unsigned long c = micros ();
-
         for ( int i=0; i<N; i++ ) data.corriente [i] = data.sensACS*(_ACS [i].sigma ()-data.yCalibACS);
         data.tension = data.sensZMPT*(_zmpt.sigma ()-data.yCalibZMPT);
-
-        //for ( int i=0; i<N; i++ ) Serial.println (data.corriente [i]);
-        //Serial.print ( "Tiempo de calculo: " );
-        //Serial.println ( micros ()- c );
     }
+}
+
+void funServer ()
+{
+    int retorno = _server.rutina ();
+    switch ( retorno )
+    {
+        case 1:
+            _pantalla.bufferTempMax = data.tempMax;
+            _pantalla.bufferTempMin = data.tempMin;
+            break;
+        case 2:
+            for ( int i=0; i<5; i++ ) _tomas.conm ( i, data.estTomas [i]);
+            break;
+        case 3:
+            delay (10);
+            _server.load ();
+            break;
+        case 4:
+            server _aux (data); 
+            _server = _aux; 
+            _server.load ();
+            break;
+    }
+    if ( retorno > 0 ) guardarSD ();
 }
