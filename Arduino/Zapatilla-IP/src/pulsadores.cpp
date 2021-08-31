@@ -27,30 +27,31 @@ bool pulsadores::checkTomas ( int p )
 bool pulsadores::checkMenu ( int p )
 {
     bool retorno = 0;
-    if ( !digitalRead ( pin->pulMenu [p] ) && !flagMenu [p] )
+    if ( flagTimer && ( p == IZQ || p == DER ) )
     {
-        flagMenu [p] = 1;
-        retorno = 1;
+        if ( !digitalRead (pin->pulMenu [p]) && flagMenu [p] && millis ()-millisAcel >= periodo )
+        {
+           // millisAcel = millis ();
+            flagMenu [p] = 0;
+                
+            #ifdef DEBUGPUL
+            Serial.println ( periodo );
+            #endif
+            periodo *= ( periodo > PERIODOMIN ) ? 0.8 : 1;
+        }
     }
-    else if ( digitalRead ( pin->pulMenu [p] ) && flagMenu [p] )
+    if ( !digitalRead (pin->pulMenu [p]) && !flagMenu [p] )
     {
+        retorno = 1;
+        flagMenu [p] = 1;
+        millisAcel = millis ();
+    }
+    else if ( digitalRead (pin->pulMenu [p]) && flagMenu [p] )
+    {
+        retorno = 0;
         flagMenu [p] = 0;
         periodo = PERIODODEF;
-    }
-    if ( flagTimer )
-    {
-        if ( flagMenu [IZQ] && millis - tIzq >= periodo )
-        {
-            tIzq = millis ();
-            periodo = periodo*0.95;
-            retorno = 1;
-        }
-        if ( flagMenu [DER] && millis () - tDer >= periodo )
-        {
-            tDer = millis ();
-            periodo = periodo*0.95;
-            retorno = 1;
-        }
+        millisAcel = millis ();
     }
     return retorno;
 }

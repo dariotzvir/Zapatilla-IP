@@ -47,6 +47,9 @@ void server::load ()
 
 int server::rutina ()
 {
+    #ifdef DEBUGANALOG
+    unsigned long d = millis ();
+    #endif
     retornoRutina = -1;
     checkDHCP ();
     cmdCliente.flush ();
@@ -73,6 +76,10 @@ int server::rutina ()
             if ( tipoPeticion == 'G' && c == '\n' )
             {
                 //Serial.println ( "\nRetorno GET" );
+                #ifdef DEBUGANALOG
+                Serial.print ( "Lectura buffer: " );
+                Serial.println ( millis ()-d );
+                #endif
                 retorno ( GET );
                 delay (1);
                 cmdCliente.stop ();
@@ -110,6 +117,10 @@ int server::rutina ()
 
 void server::retorno ( bool tipo )
 {
+    
+    #ifdef DEBUGANALOG
+    unsigned long e = millis ();
+    #endif
     String devolucion = "Peticion erronea";
 
     String cmd = header.substring (4, 8);
@@ -129,6 +140,11 @@ void server::retorno ( bool tipo )
     cmdCliente.println ( devolucion );
 
     header = "";
+    
+    #ifdef DEBUGANALOG
+    Serial.print ( "Tiempo retorno: " );
+    Serial.println ( millis ()-e );
+    #endif
 }
 
 bool server::checkLogin ( int index )

@@ -9,6 +9,13 @@
 #define N 5
 #endif
 
+//#define DEBUGSD
+//#define DEBUGMAC
+//#define DEBUGDHCP
+//#define DEBUGPET
+//#define DEBUGPUL
+#define DEBUGANALOG
+
 enum pantallas 
 {
     APAGADA = 0,
