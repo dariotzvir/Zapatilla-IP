@@ -226,7 +226,7 @@ void pantallaOLED::menu ( IPAddress localHost, bool flagSD )
             print ( "SD: " );
             setCursor ( 4 , 27 );
             print ( flagSD ? "Error" : "OK" );
-
+            
             break;
             
     }
@@ -250,9 +250,12 @@ void pantallaOLED::pantallaReset ()
     setTextColor ( BLACK );
     setTextSize ( 2 );
 
-    setCursor ( 13 ,22 );
-
+    //RsetCursor ( 13 ,22 );
+    uint16_t x, y, w, h;
+    getTextBounds ( "Reset", 0, 0, &x, &y, &w, &h );
+    setCursor ( x,y );
     print ( "Reset" );
+    
 
     display ();
 }
@@ -273,8 +276,10 @@ void pantallaOLED::pantallaBoot ()
     setTextColor ( BLACK );
     setTextSize ( 2 );
 
-    setCursor ( 13 ,22 );
-
+    //setCursor ( 13 ,22 );
+    uint16_t x, y, w, h;
+    getTextBounds ( "Boot", 0, 0, &x, &y, &w, &h );
+    setCursor ( w,h );
     print ( "Boot" );
 
     display ();

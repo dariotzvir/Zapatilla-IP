@@ -22,6 +22,7 @@
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
 #define FALLOSDHCP 10
+#define PERIODODHCP long(3600000)
 #define GET 0
 #define POST 1
 
@@ -37,7 +38,6 @@ class server: EthernetServer
         int retornoRutina = 0;                               
         String peticion, header;
         unsigned long millisDHCP = 0;
-        long periodoDHCP = 3000000; //Si le pongo int tiraba problemas de casteo, el ciclo es 30min
         int contErrorDHCP = 0;
         String bufferClave = "", bufferUser = "";
 

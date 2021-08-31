@@ -11,10 +11,10 @@
 
 //#define DEBUGSD
 //#define DEBUGMAC
-//#define DEBUGDHCP
+#define DEBUGDHCP
 //#define DEBUGPET
 //#define DEBUGPUL
-#define DEBUGANALOG
+//#define DEBUGANALOG
 
 enum pantallas 
 {

@@ -115,8 +115,8 @@ void funDHT ()
     data.temp = _dht.readTemperature ();
     data.hum = _dht.readHumidity ();
     //Si la temperatura está por arriba del límite y el toma está apagado lo prende, y viceversa.
-    if ( data.temp>data.tempMax ) _tomas.conm ( 4, 1 );
-    if ( data.temp<data.tempMin ) _tomas.conm ( 4, 0 );
+    if ( data.temp>data.tempMax && data.estTomas [4] == 0 ) _tomas.invertir ( 4 );
+    if ( data.temp<data.tempMin && data.estTomas [4] == 1 ) _tomas.invertir ( 4 );
   }
 }
 

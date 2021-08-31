@@ -1,5 +1,6 @@
 #include "headers/server.h"
 
+#include <SD.h>
 #include <utility/w5100.h>
 
 EthernetClient cmdCliente;
@@ -438,13 +439,34 @@ void server::checkDHCP ()
     *   en ningún otro lado.
     *       Solo se necesita reiniciar los contadores.
     */
-    if ( millis () - millisDHCP >= periodoDHCP ) 
+    if ( millis () - millisDHCP >= PERIODODHCP ) 
     {
         #ifdef DEBUGDHCP
         Serial.println ( "Check DHCP" );
         #endif
         millisDHCP = millis ();
         int retorno = Ethernet.maintain ();
+        File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+        switch (retorno)
+        {
+        case 1:
+            log.println ( "Renueva IP" );
+            break;
+        case 2:
+            log.println ( "Falla renovar" );
+            break;
+        case 3:
+            log.print ( "Nueva IP: " );
+            log.println ( Ethernet.localIP () );
+            break;
+        case 4:
+            log.println ( "Falla en tomar nueva IP" );
+            break;
+        default:
+            log.println ( "Retorno 0" );
+            break;
+        }
+        log.close ();
         if ( retorno == 0 || retorno == 1 || retorno == 3 )
         {
             if ( contErrorDHCP >= FALLOSDHCP ) load (); //millisDHCP y el contador se renuevan en load ()
