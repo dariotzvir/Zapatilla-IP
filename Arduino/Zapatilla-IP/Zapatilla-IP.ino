@@ -21,13 +21,16 @@
 #include "src/DHT22/DHT.h"
 #include "src/Filters-master/Filters.h"
 
+void guardarSD ();
+void (*ptrGuardarSD) () = &guardarSD;
+
 struct DATA data;
 struct PINES pin;
 DHT _dht ( pin.pinDHT , DHT22 );
 tomacorrientes _tomas ( data, pin );
 pulsadores _pulsadores ( pin );
 pantallaOLED _pantalla ( data );
-server _server ( data );
+server _server ( data, ptrGuardarSD );
 RunningStatistics _zmpt;
 RunningStatistics _ACS [N];
 IPAddress ipStored ( 192, 168, 254, 154 ); //IP hardcodeada para cuando se resetea de fábrica
@@ -41,6 +44,7 @@ unsigned long millisAnalog = 0;
 const int periodoAnalog = 1000;
 const int periodoPan = (int) 30000;             
 bool flagErrorSD = 0;
+bool flagReset = 0;
 
 unsigned long a = 0;
 
@@ -48,6 +52,8 @@ void setup()
 {         
     Serial.begin (9600);
 
+    SD.begin (4);
+    SD.end ();
     if ( !SD.begin (4) ) 
     {
         #ifdef DEBUGSD
@@ -67,11 +73,14 @@ void setup()
     _pantalla.pantallaBoot ();
     data.ipDef = ipStored;
 
+    pinMode ( pin.pinRst, INPUT );
+    attachInterrupt ( digitalPinToInterrupt ( pin.pinRst ), intReset, RISING );
+
     #ifdef DEBUGMAC
     for ( int i : data.mac ) Serial.println ( i, 16 );
     #endif
     
-    server _aux (data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
+    server _aux (data, ptrGuardarSD);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado (80)
     _server.setup (); 
     data.actIpString ();
@@ -99,6 +108,7 @@ void setup()
 
 void loop() 
 {
+    if ( flagReset ) reset ();
     funDHT ();
     funPul ();
     funAnalog ();
@@ -151,6 +161,7 @@ void funPul ()
                         guardarSD ();
                         _pulsadores.flagTimer = 0;
                         _server.load ();
+                        _pantalla.resetBuf ();
                         break;
                     default:
                         guardarSD ();
@@ -211,8 +222,9 @@ void funPantalla ()
 void reset ()
 {
     if ( flagErrorSD == 0 ) crearSDdefecto (); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
-    
+    _pantalla.pantallaReset ();
     wdt_enable( WDTO_60MS ); //Llama al watchdog
+
     while (1);
 }
 
@@ -220,6 +232,9 @@ void guardarSD ()
 {
     if ( flagErrorSD==0 )
     {
+        #ifdef DEBUGSD
+        Serial.println ( "Guardando" );
+        #endif
         configJson.clear ();
 
         for ( int i=0; i<4; i++ ) configJson ["ipDef"][i] = data.ipDef [i];
@@ -266,66 +281,64 @@ void cargarSD ()
         Serial.println ( error.c_str () );
         #endif
 
-        if ( error )
+        if ( !error )
         {
-            crearSDdefecto ();
-            return;
+            byte aux [4];
+
+            for ( int i=0; i<4; i++ ) aux [i] = configJson ["ipDef"][i];
+            data.ipDef = aux;
+            
+            data.puerto = configJson ["puerto"];
+
+            data.dhcp = configJson ["dhcp"];
+
+            data.tempMax = configJson ["tempMax"];
+            if ( data.tempMax > 125 || data.tempMax < -40 ) data.tempMax = 125;
+            
+            data.tempMin = configJson ["tempMin"];
+            if ( data.tempMin > data.tempMax || data.tempMin < -40 ) data.tempMin = -40;
+            //else data.tempMin = data.tempMax;
+
+            for ( int i=0; i<N; i++ ) 
+            {
+                data.estTomas [i] = configJson ["estado"][i];
+                _tomas.conm ( i, data.estTomas [i] );
+            }
+
+            for ( int i=0; i<6; i++ ) data.mac [i] = (int) configJson ["mac"][i];
+
+            String u = configJson ["usuario"];
+            data.usuario = u;
+            String c = configJson ["clave"];
+            data.clave = c; 
+
+            #ifdef DEBUGSD
+            Serial.print ( "Tempmax: " );
+            Serial.println ( (int) configJson ["tempMax"] );
+            Serial.print ( "Tempmin: " );
+            Serial.println ( (int) configJson ["tempMin"]);
+            Serial.print ( "DHCP: " );
+            Serial.println ( (int) configJson ["dhcp"] );
+            Serial.print ( "Puerto: " );
+            Serial.println ( (int) configJson ["puerto"] );
+
+            Serial.print ( "Usuario: " );
+            String uu = configJson ["usuario"];
+            Serial.println ( uu );
+
+            Serial.print ( "Clave: " );
+            String cc = configJson ["clave"];
+            Serial.println ( cc );
+
+            Serial.print ( "Estado: " );
+            for ( int i=0; i<N; i++ ) Serial.println ( (int) configJson ["estTomas"][i] );
+            Serial.print ( "Mac: " );
+            for ( int i=0; i<6; i++ ) Serial.println ( (int) configJson ["mac"][i] );
+            Serial.print ( "ipDef: " );
+            for ( int i=0; i<4; i++ ) Serial.println ( (int) configJson ["ipDef"][i] );
+            #endif
         }
-
-        byte aux [4];
-
-        for ( int i=0; i<4; i++ ) aux [i] = configJson ["ipDef"][i];
-        data.ipDef = aux;
-        
-        data.puerto = configJson ["puerto"];
-
-        data.dhcp = configJson ["dhcp"];
-
-        data.tempMax = configJson ["tempMax"];
-        if ( data.tempMax > 125 || data.tempMax < -40 ) data.tempMax = 125;
-        
-        data.tempMin = configJson ["tempMin"];
-        if ( data.tempMin > data.tempMax || data.tempMin < -40 ) data.tempMin = -40;
-        //else data.tempMin = data.tempMax;
-
-        for ( int i=0; i<N; i++ ) 
-        {
-            data.estTomas [i] = configJson ["estado"][i];
-            _tomas.conm ( i, data.estTomas [i] );
-        }
-
-        for ( int i=0; i<6; i++ ) data.mac [i] = (int) configJson ["mac"][i];
-
-        String u = configJson ["usuario"];
-        data.usuario = u;
-        String c = configJson ["clave"];
-        data.clave = c; 
-
-        #ifdef DEBUGSD
-        Serial.print ( "Tempmax: " );
-        Serial.println ( (int) configJson ["tempMax"] );
-        Serial.print ( "Tempmin: " );
-        Serial.println ( (int) configJson ["tempMin"]);
-        Serial.print ( "DHCP: " );
-        Serial.println ( (int) configJson ["dhcp"] );
-        Serial.print ( "Puerto: " );
-        Serial.println ( (int) configJson ["puerto"] );
-
-        Serial.print ( "Usuario: " );
-        String uu = configJson ["usuario"];
-        Serial.println ( uu );
-
-        Serial.print ( "Clave: " );
-        String cc = configJson ["clave"];
-        Serial.println ( cc );
-
-        Serial.print ( "Estado: " );
-        for ( int i=0; i<N; i++ ) Serial.println ( (int) configJson ["estTomas"][i] );
-        Serial.print ( "Mac: " );
-        for ( int i=0; i<6; i++ ) Serial.println ( (int) configJson ["mac"][i] );
-        Serial.print ( "ipDef: " );
-        for ( int i=0; i<4; i++ ) Serial.println ( (int) configJson ["ipDef"][i] );
-        #endif
+        else crearSDdefecto ();
     }
     else 
     {
@@ -338,6 +351,9 @@ void cargarSD ()
 
 void crearSDdefecto ()
 {
+    #ifdef DEBUGSD
+    Serial.println ( "Creando por defecto" );
+    #endif
     configJson.clear ();
 
     for ( int i=0; i<4; i++ ) configJson ["ipDef"][i] = ipStored [i];
@@ -377,8 +393,7 @@ void funServer ()
     switch ( retorno )
     {
         case 1:
-            _pantalla.bufferTempMax = data.tempMax;
-            _pantalla.bufferTempMin = data.tempMin;
+            _pantalla.resetBuf ();
             break;
         case 2:
             for ( int i=0; i<5; i++ ) _tomas.conm ( i, data.estTomas [i]);
@@ -388,10 +403,12 @@ void funServer ()
             _server.load ();
             break;
         case 4:
-            server _aux (data); 
+            server _aux (data, ptrGuardarSD); 
             _server = _aux; 
             _server.load ();
             break;
     }
-    if ( retorno > 0 ) guardarSD ();
+    //if ( retorno > 0 ) guardarSD ();
 }
+
+void intReset (){flagReset = 1;}

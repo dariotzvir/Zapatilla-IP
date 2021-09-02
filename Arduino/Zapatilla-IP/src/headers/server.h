@@ -29,12 +29,13 @@
 class server: EthernetServer
 {
     public:
-        server ( DATA & );
+        server ( DATA &data, void (*guardarSD) () );
         void setup ();
         int rutina ();
         void load ();
     private:
         DATA *data;
+        void (*guardarSD) ();
         int retornoRutina = 0;                               
         String peticion, header;
         unsigned long millisDHCP = 0;

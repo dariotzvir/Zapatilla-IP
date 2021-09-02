@@ -140,10 +140,43 @@ void pantallaOLED::pantallaPrincipal ()
     print ( data->hum, 1 );
     print ( "%" );
 
-    setCursor ( 19, 51 );                        
-    print ( "Tension: " );
-    print ( data->tension );                      
-    print ( "V" );
+    setCursor ( 19, 51 );     
+
+    char strTen [16];
+    for ( int i=0; i<16; i++ ) strTen [i] = '\0';
+    strcpy ( strTen, "Tension: " );
+
+    int aux = (data->tension >= 0) ? data->tension : -data->tension;
+    int num [3];
+    for ( int i=0; i<3; i++ )
+    {
+        num [i] = aux/pow (10, 2-i);
+        aux -= num [i]*pow (10, 2-i);
+    }
+
+    char buf [4];
+    int index = 0;
+    for ( int i=0; i<3; i++ )
+    {
+        if ( !num [i] && !index );
+        else buf [index++] = '0' + num [i];
+    }
+    for ( int i=index; i<4; i++ ) buf [i] = '\0';
+    if ( buf [0] == '\0' ) buf [0] = '0';
+
+    strcat ( strTen, buf );
+    strcat ( strTen, "V" );
+    
+    uint16_t w, h, *w1, *h1;
+    int16_t x, y, *x1, *y1;
+    x1 = &x;
+    y1 = &y;
+    w1 = &w;
+    h1 = &h;
+    getTextBounds ( strTen, 19, 51, x1, y1, w1, h1 );
+    setCursor ( 64-w/2, 48+(64-48)/2-h/2 );
+
+    print ( strTen );
 
     display ();
 }
@@ -248,15 +281,23 @@ void pantallaOLED::pantallaReset ()
     drawRect ( 3 , 3 , 121 , 57 , BLACK );
 
     setTextColor ( BLACK );
-    setTextSize ( 2 );
-
-    //RsetCursor ( 13 ,22 );
-    uint16_t x, y, w, h;
-    getTextBounds ( "Reset", 0, 0, &x, &y, &w, &h );
-    setCursor ( x,y );
-    print ( "Reset" );
+    setTextSize ( 3 );
     
-
+    /*
+    *   Codigo auxiliar para centrar el string:
+    *   uint16_t x, y, w, h;
+    *   getTextBounds ( "RESET", 0, 0, &x, &y, &w, &h );
+    *   Serial.print ( "w: " );
+    *   Serial.println ( w );
+    *   Serial.print ( "h: " );
+    *   Serial.println ( h );
+    *   setCursor ( 64-w/2, 32-h/2 );
+    */
+    const int xCur = 19;
+    const int yCur = 20;
+    setCursor ( xCur, yCur );
+    print ( "RESET" );
+    
     display ();
 }
 
@@ -274,13 +315,28 @@ void pantallaOLED::pantallaBoot ()
     drawRect ( 3 , 3 , 121 , 57 , BLACK );
 
     setTextColor ( BLACK );
-    setTextSize ( 2 );
-
-    //setCursor ( 13 ,22 );
-    uint16_t x, y, w, h;
-    getTextBounds ( "Boot", 0, 0, &x, &y, &w, &h );
-    setCursor ( w,h );
-    print ( "Boot" );
+    setTextSize ( 3 ); 
+    
+    const int xCur = 28;
+    const int yCur = 20;
+    setCursor ( xCur, yCur );
+    print ( "BOOT" );
+    /*
+    *   El string "BOOT" en tamaño 3 tiene 72px X 24px
+    *   Para centrar es ( ANCHOPANTALLA - ANCHOSTRING )/2 para x
+    *   Para centrar es ( LARGAPANTALLA - LARGOSTRING )/2 para y
+    * 
+    *   La pantalla es 128px X 64px
+    * 
+    *   uint16_t x, y, w, h;
+    *   getTextBounds ( "BOOT", 0, 0, &x, &y, &w, &h );
+    *   Serial.print ( "w: " );
+    *   Serial.println ( w );
+    *   Serial.print ( "h: " );
+    *   Serial.println ( h );
+    * 
+    *   setCursor ( 64-w/2, 32-h/2 );
+    */
 
     display ();
 
@@ -372,4 +428,11 @@ void pantallaOLED::logicaOnOff ()
     bufferTempMin = data->tempMin;
     bufferDHCP = data->dhcp;
     flagSelec = 0;
+}
+
+void pantallaOLED::resetBuf ()
+{
+    bufferTempMax = data->tempMax;
+    bufferTempMin = data->tempMin;
+    bufferDHCP = data->dhcp;
 }

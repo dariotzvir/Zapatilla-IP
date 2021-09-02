@@ -9,7 +9,7 @@
 #define N 5
 #endif
 
-//#define DEBUGSD
+#define DEBUGSD
 //#define DEBUGMAC
 #define DEBUGDHCP
 //#define DEBUGPET

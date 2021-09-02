@@ -6,6 +6,7 @@
 #include <Wire.h>
 #include <Adafruit_SSD1306.h>
 #include "util.h"
+#include <string.h>
 
 #ifndef N
 #define N 5
@@ -23,6 +24,8 @@ class pantallaOLED: public Adafruit_SSD1306
         void pantallaReset ();
         void pantallaBoot ();
         void pantallaMAC ();
+
+        void resetBuf ();
 
         void logicaDer ();
         void logicaIzq ();

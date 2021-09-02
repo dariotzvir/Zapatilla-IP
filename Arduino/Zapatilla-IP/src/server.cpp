@@ -3,11 +3,14 @@
 #include <SD.h>
 #include <utility/w5100.h>
 
+#define alfaNum(c) ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+
 EthernetClient cmdCliente;
 
-server::server ( DATA &data ): EthernetServer ( data.puerto )
+server::server ( DATA &data, void (*guardarSD) () ): EthernetServer ( data.puerto )
 {
     this->data = &data;
+    this->guardarSD = guardarSD;
 }
 
 void server::setup ()
@@ -42,8 +45,8 @@ void server::load ()
         }
     }
 
-    contErrorDHCP = 0;
-    millisDHCP = millis ();
+    //contErrorDHCP = 0;
+    //millisDHCP = millis ();
 }
 
 int server::rutina ()
@@ -51,8 +54,9 @@ int server::rutina ()
     #ifdef DEBUGANALOG
     unsigned long d = millis ();
     #endif
+
     retornoRutina = -1;
-    checkDHCP ();
+    if ( data->dhcp ) checkDHCP ();
     cmdCliente.flush ();
     cmdCliente = available ();
     bool lineaEnBlanco = 1;
@@ -72,6 +76,7 @@ int server::rutina ()
                 Serial.print ( c );
                 #endif
                 if ( header.length () < 100 ) header += c;
+                else return retornoRutina;
             }
 
             if ( tipoPeticion == 'G' && c == '\n' )
@@ -113,6 +118,7 @@ int server::rutina ()
             else if ( c != '\r' ) lineaEnBlanco = 0;*/
         }
     }
+    if ( retornoRutina > 0 ) (*guardarSD) ();
     return retornoRutina;   
 }
 
@@ -155,7 +161,7 @@ bool server::checkLogin ( int index )
     *           ?admin+12345
     *   GET /cmd?tempmax=123 HTTP/1.1
     */
-    
+    bool retorno = 0;
     String aux = '?' + data->usuario + '+' + data->clave; //Formatea a como deberían estar el usuario y contraseña en la peticion HTTP
     String cmd = header.substring ( index, index+aux.length () ); //Selecciona el segmento de string donde deberia estar el usuario y contraseña
     if ( cmd.compareTo ( aux ) == 0 ) //Chequea si son iguales
@@ -164,9 +170,9 @@ bool server::checkLogin ( int index )
         #ifdef DEBUGPET
         Serial.println ( header );
         #endif
-        return 1;
+        retorno = 1;
     }
-    return 0;
+    return retorno;
 }
 
 String server::lecturaServer ( int index )
@@ -214,7 +220,7 @@ String server::lecturaServer ( int index )
 String server::comandoServerGET ( int index )
 {
     //Se corroboran los substring a ver si las peticiones están bien formuladas, .substring no incluye el último caracter añadido por lo que (index, index+5) tomará hasta index+4
-
+    
     if ( checkStr ( index, "?mac" ) ) //GET /cmd?mac=DE+AD+BE+EF+FE+ED HTTP/1.1
     {
         if ( header [ index + 4 ] != '=' ) return ERRORPET;
@@ -261,8 +267,10 @@ String server::comandoServerGET ( int index )
         retornoRutina = 7;
         return GUARDADO;
     }
-    if ( checkStr ( index, "?tempmax" ) ) //GET /cmd?tempmin=100 HTTP/1.1
+    else if ( checkStr ( index, "?tempmax" ) ) //GET /cmd?tempmin=100 HTTP/1.1
     {
+        if ( header [ index + 8 ] != '=' ) return ERRORPET;
+
         int temp = leerTemp ( header, index );
 
         if ( temp == 126 ) return ERRORPET;
@@ -272,8 +280,10 @@ String server::comandoServerGET ( int index )
         retornoRutina = 1;
         return GUARDADO;
     }
-    if ( checkStr ( index, "?tempmin" ) )  //GET /cmd?tempmin=-11 HTTP/1.1
+    else if ( checkStr ( index, "?tempmin" ) )  //GET /cmd?tempmin=-11 HTTP/1.1
     {
+        if ( header [ index + 8 ] != '=' ) return ERRORPET;
+
         int temp = leerTemp ( header, index );
 
         if ( temp == 126 ) return ERRORPET;
@@ -283,7 +293,7 @@ String server::comandoServerGET ( int index )
         retornoRutina = 1;
         return GUARDADO;
     }
-    if ( checkStr ( index, "?tomas" ) ) //GET /cmd?tomas+1=0 HTTP/1.1
+    else if ( checkStr ( index, "?tomas" ) ) //GET /cmd?tomas+1=0 HTTP/1.1
     {
         if ( header [ index + 6 ] != '+' || header [ index + 8 ] != '=' || header [ index + 10 ] != ' ' ) return ERRORPET;
 
@@ -297,7 +307,7 @@ String server::comandoServerGET ( int index )
         retornoRutina = 2;
         return GUARDADO;
     }
-    if ( checkStr ( index, "?ipdef" ) ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
+    else if ( checkStr ( index, "?ipdef" ) ) //GET /cmd?ipdef=192.168.0.154 HTTP/1.1
     {
         if ( header [ index + 6 ] != '=' ) return ERRORPET;
         int fin = header.indexOf ( "HTTP" )-1;
@@ -311,7 +321,7 @@ String server::comandoServerGET ( int index )
         if ( data->dhcp == 0 ) retornoRutina = 3;
         return GUARDADO;
     }
-    if ( checkStr ( index, "?dhcp" ) ) //GET /cmd?dhcp=1 HTTP/1.1
+    else if ( checkStr ( index, "?dhcp" ) ) //GET /cmd?dhcp=1 HTTP/1.1
     {
         if ( header [ index + 5 ] != '=' || header [ index + 7 ] != ' ' ) return ERRORPET;
         if (  header [ index + 6 ] != '1' &&  header [ index + 6 ] != '0' ) return ERRORPET;
@@ -322,7 +332,7 @@ String server::comandoServerGET ( int index )
         retornoRutina = 3;
         return GUARDADO;
     }
-    if ( checkStr ( index, "?puerto" ) ) //GET /cmd?puerto=10 HTTP/1.1
+    else if ( checkStr ( index, "?puerto" ) ) //GET /cmd?puerto=10 HTTP/1.1
     {
         if ( header [ index + 7 ] != '=' ) return ERRORPET;
 
@@ -335,33 +345,33 @@ String server::comandoServerGET ( int index )
         retornoRutina = 4;
         return String ( "Nuevo puerto:" +  String (data->puerto) );
     }
-    if ( checkStr ( index, "?clave" ) )
+    else if ( checkStr ( index, "?clave" ) )
     {
         if ( header [ index + 6 ] != '=' ) return ERRORPET;
 
         int fin = header.indexOf ( "HTTP" )-1;
         String aux = header.substring ( index + 7, fin );
 
-        for ( int i=0; i<aux.length (); i++ ) if ( !checkAlfaNum ( aux [i] ) ) return ERRORPET;
+        for ( int i=0; i<aux.length (); i++ ) if ( !alfaNum ( aux [i] ) ) return ERRORPET;
                 
         bufferClave = aux;
 
         return GUARDADO;
     }
-    if ( checkStr ( index, "?user" ) )
+    else if ( checkStr ( index, "?user" ) )
     {
         if ( header [ index + 5 ] != '=' ) return ERRORPET;
 
         int fin = header.indexOf ( "HTTP" )-1;
         String aux = header.substring ( index + 6, fin );
 
-        for ( int i=0; i<aux.length (); i++ ) if ( !checkAlfaNum ( aux [i] ) ) return ERRORPET;
+        for ( int i=0; i<aux.length (); i++ ) if ( !alfaNum ( aux [i] ) ) return ERRORPET;
 
         bufferUser = aux;
 
         return GUARDADO;
     }
-    if ( checkStr ( index, "?validar" ) )
+    else if ( checkStr ( index, "?validar" ) )
     {
         if ( header [ index + 8 ] != '=' ) return ERRORPET;
 
@@ -398,7 +408,6 @@ int server::leerTemp ( String &header, int index )
 
 bool server::comprobarTempBoundaries ( String &header, int temp, int index )
 {
-    if ( header [ index + 8 ] != '=' ) return 0;
     if ( temp >= 0 && temp < 10 && header [ index + 10 ] != ' ' ) return 0;
 
     if ( temp >= 10 && temp < 100 && header [ index + 11 ] != ' ' ) return 0;
@@ -426,8 +435,6 @@ String server::encodeTomas ( bool *estTomas, float *corriente )
 void server::checkDHCP ()
 {
     /*
-    *       Cada 30 minutos llama al método que comprueba que la ddirección DHCP siga siendo válida
-    *   puede retornar:
     *   --0: el metoro hizo algo mal
     *   --1: DHCP renovado con la misma IP
     *   --2: Falló renovar la misma IP
@@ -439,13 +446,17 @@ void server::checkDHCP ()
     *   en ningún otro lado.
     *       Solo se necesita reiniciar los contadores.
     */
-    if ( millis () - millisDHCP >= PERIODODHCP ) 
+    //if ( millis () - millisDHCP >= PERIODODHCP ) 
+    //{
+    //      millisDHCP = millis ();
+    
+    int retorno = Ethernet.maintain ();
+    #ifdef DEBUGDHCP
+    Serial.print ( "Checked DHCP: " );
+    Serial.println ( retorno );
+    if ( retorno != -1 )
     {
-        #ifdef DEBUGDHCP
-        Serial.println ( "Check DHCP" );
-        #endif
-        millisDHCP = millis ();
-        int retorno = Ethernet.maintain ();
+        Serial.println ( "Writing log" );
         File log = SD.open ( "logDHCP.txt", FILE_WRITE );
         switch (retorno)
         {
@@ -467,20 +478,26 @@ void server::checkDHCP ()
             break;
         }
         log.close ();
-        if ( retorno == 0 || retorno == 1 || retorno == 3 )
-        {
-            if ( contErrorDHCP >= FALLOSDHCP ) load (); //millisDHCP y el contador se renuevan en load ()
-            else contErrorDHCP++;
-        }
-        if ( retorno == 2 || retorno == 4 ) 
-        {
-            millisDHCP = millis ();
-            contErrorDHCP = 0;
-        }
-        #ifdef DEBUGDHCP
-        Serial.println ( "Check DHCP retorno: " + String ( retorno ) );
-        #endif
     }
+    #endif
+    if ( retorno == 0 || retorno == 1 || retorno == 3 )
+    {
+        if ( contErrorDHCP >= FALLOSDHCP ) 
+        {
+            contErrorDHCP = 0;
+            load (); //millisDHCP y el contador se renuevan en load ()
+        }
+        else contErrorDHCP++;
+    }
+    if ( retorno == 2 || retorno == 4 ) 
+    {
+        //millisDHCP = millis ();
+        contErrorDHCP = 0;
+    }
+    #ifdef DEBUGDHCP
+    //Serial.println ( "Check DHCP retorno: " + String ( retorno ) );
+    #endif
+    //}
 }
 
 bool server::checkStr ( int index, const char *str )
@@ -488,5 +505,3 @@ bool server::checkStr ( int index, const char *str )
     int largo = strlen ( str );
     return !(header.substring ( index, index + largo ).compareTo ( str ));
 }
-
-bool server::checkAlfaNum ( char c ) { return !(!(c >= '0' && c <= '9') && !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') ); }

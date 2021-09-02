@@ -9,7 +9,7 @@
 #endif
 
 #define PERIODODEF 250
-#define PERIODOMIN 50
+#define PERIODOMIN 30
 
 class pulsadores
 {
