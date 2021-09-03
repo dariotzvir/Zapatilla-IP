@@ -55,6 +55,8 @@ class server: EthernetServer
 
         int leerTemp ( String &, int );
         bool comprobarTempBoundaries ( String &, int, int );
+
+        String debugLog ();
 };
 
 

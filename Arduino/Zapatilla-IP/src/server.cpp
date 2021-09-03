@@ -23,6 +23,22 @@ void server::setup ()
 
     load ();
 
+    File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+    log.println ( "DHCP inicia:" );
+    log.println ( "Tiempos leases:" );
+    log.print ( "Principal: " );
+    log.print ( *((Ethernet._dhcp)->lease) );
+    log.print ( "\tT1: " );
+    log.print ( *((Ethernet._dhcp)->leaseT1) );
+    log.print ( "\tT2: " );
+    log.print ( *((Ethernet._dhcp)->leaseT2) );
+    log.print ( "\nRebind sec: " );
+    log.print ( *((Ethernet._dhcp)->rebind) );
+    log.print ( "\nRenew sec: " );
+    log.print ( *((Ethernet._dhcp)->renew) );
+    log.println ();
+    log.close ();
+
     begin ();
 }
 
@@ -132,10 +148,13 @@ void server::retorno ( bool tipo )
 
     String cmd = header.substring (4, 8);
 
-    if ( !cmd.compareTo ( "/ HT" ) > 0 ) devolucion = "Zapatilla IP OK";
+
+
+    if ( !cmd.compareTo ( "/deb" ) > 0 ) devolucion = debugLog ();
+    else if ( !cmd.compareTo ( "/ HT" ) > 0 ) devolucion = "Zapatilla IP OK";
     else if ( checkLogin ( 8 ) )
     {
-        if ( !cmd.compareTo ( "/lec" ) ) devolucion = lecturaServer ( 8 );
+        if ( !cmd.compareTo ( "/lec" ) > 0 ) devolucion = lecturaServer ( 8 );
         else if ( tipo == GET && !cmd.compareTo ( "/cmd" ) > 0 ) devolucion = comandoServerGET ( 8 );
         else if ( tipo == POST && !cmd.compareTo ( "/cmd" ) > 0 ) devolucion = comandoServerGET ( 8 );
     }
@@ -261,7 +280,7 @@ String server::comandoServerGET ( int index )
         data->actMacString ();
         
         #ifdef DEBUGMAC
-        Serial.println ( encodeMac (data->macString () );
+        Serial.println ( data->macString );
         #endif
 
         retornoRutina = 7;
@@ -452,12 +471,27 @@ void server::checkDHCP ()
     
     int retorno = Ethernet.maintain ();
     #ifdef DEBUGDHCP
-    Serial.print ( "Checked DHCP: " );
-    Serial.println ( retorno );
+    //Serial.print ( "Checked DHCP: " );
+    //Serial.println ( retorno );
     if ( retorno != -1 )
     {
         Serial.println ( "Writing log" );
         File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+        log.println ( "DHCP inicia:" );
+        log.println ( "Tiempos leases:" );
+        log.print ( "Principal: " );
+        log.print ( *((Ethernet._dhcp)->lease) );
+        log.print ( "\tT1: " );
+        log.print ( *((Ethernet._dhcp)->leaseT1) );
+        log.print ( "\tT2: " );
+        log.print ( *((Ethernet._dhcp)->leaseT2) );
+        log.print ( "\nRebind sec: " );
+        log.print ( *((Ethernet._dhcp)->rebind) );
+        log.print ( "\nRenew sec: " );
+        log.print ( *((Ethernet._dhcp)->renew) );
+        log.println ();
+        log.close ();
+
         switch (retorno)
         {
         case 1:
@@ -504,4 +538,21 @@ bool server::checkStr ( int index, const char *str )
 {
     int largo = strlen ( str );
     return !(header.substring ( index, index + largo ).compareTo ( str ));
+}
+
+String server::debugLog ()
+{
+    Serial.println ( "entra debug log" );
+    String aux = "";
+    File log = SD.open ( "logDHCP.txt", FILE_READ );
+
+    if ( log ) while ( log.available () )
+    {
+        char c =  log.read ();
+        Serial.print ( c );
+        aux.concat ( c );
+    }
+
+    log.close ();
+    return aux;
 }

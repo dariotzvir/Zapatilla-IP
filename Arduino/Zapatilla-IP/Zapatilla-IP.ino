@@ -67,14 +67,18 @@ void setup()
         Serial.println ("SD carga");
         #endif
         cargarSD ();
+
+        File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+        log.println ( "***********BOOT***********" );
+        log.close ();
     }
     
     _pantalla.setup (); 
     _pantalla.pantallaBoot ();
     data.ipDef = ipStored;
 
-    pinMode ( pin.pinRst, INPUT );
-    attachInterrupt ( digitalPinToInterrupt ( pin.pinRst ), intReset, RISING );
+    //pinMode ( pin.pinRst, INPUT );
+    //attachInterrupt ( digitalPinToInterrupt ( pin.pinRst ), intReset, RISING );
 
     #ifdef DEBUGMAC
     for ( int i : data.mac ) Serial.println ( i, 16 );
@@ -89,6 +93,7 @@ void setup()
     Serial.println ( "Debug MAC:" );
     Serial.println ( data.macString );
     #endif
+    Serial.println ( Ethernet.localIP () );
 
     _tomas.begin ();
     _pulsadores.begin ();
