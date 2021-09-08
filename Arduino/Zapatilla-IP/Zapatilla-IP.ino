@@ -94,7 +94,6 @@ void setup()
     Serial.println ( data.macString );
     #endif
     Serial.println ( Ethernet.localIP () );
-
     _tomas.begin ();
     _pulsadores.begin ();
     _dht.begin ();

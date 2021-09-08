@@ -21,8 +21,8 @@
 #define FUERARANGO "Fuera de rango"
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
-#define FALLOSDHCP 10
-#define PERIODODHCP long(3600000)
+#define FALLOSDHCP 1
+#define PERIODODHCP long(900000)
 #define GET 0
 #define POST 1
 
