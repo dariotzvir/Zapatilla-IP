@@ -23,6 +23,22 @@ void server::setup ()
 
     load ();
 
+    File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+    log.println ( "DHCP inicia:" );
+    log.println ( "Tiempos leases:" );
+    log.print ( "Principal: " );
+    log.print ( *((Ethernet._dhcp)->lease) );
+    log.print ( "\tT1: " );
+    log.print ( *((Ethernet._dhcp)->leaseT1) );
+    log.print ( "\tT2: " );
+    log.print ( *((Ethernet._dhcp)->leaseT2) );
+    log.print ( "\nRebind sec: " );
+    log.print ( *((Ethernet._dhcp)->rebind) );
+    log.print ( "\nRenew sec: " );
+    log.print ( *((Ethernet._dhcp)->renew) );
+    log.println ();
+    log.close ();
+
     begin ();
 }
 
@@ -132,10 +148,13 @@ void server::retorno ( bool tipo )
 
     String cmd = header.substring (4, 8);
 
-    if ( !cmd.compareTo ( "/ HT" ) > 0 ) devolucion = "Zapatilla IP OK";
+
+
+    if ( !cmd.compareTo ( "/deb" ) > 0 ) devolucion = debugLog ();
+    else if ( !cmd.compareTo ( "/ HT" ) > 0 ) devolucion = "Zapatilla IP OK";
     else if ( checkLogin ( 8 ) )
     {
-        if ( !cmd.compareTo ( "/lec" ) ) devolucion = lecturaServer ( 8 );
+        if ( !cmd.compareTo ( "/lec" ) > 0 ) devolucion = lecturaServer ( 8 );
         else if ( tipo == GET && !cmd.compareTo ( "/cmd" ) > 0 ) devolucion = comandoServerGET ( 8 );
         else if ( tipo == POST && !cmd.compareTo ( "/cmd" ) > 0 ) devolucion = comandoServerGET ( 8 );
     }
@@ -261,7 +280,7 @@ String server::comandoServerGET ( int index )
         data->actMacString ();
         
         #ifdef DEBUGMAC
-        Serial.println ( encodeMac (data->macString () );
+        Serial.println ( data->macString );
         #endif
 
         retornoRutina = 7;
@@ -446,62 +465,80 @@ void server::checkDHCP ()
     *   en ningún otro lado.
     *       Solo se necesita reiniciar los contadores.
     */
-    //if ( millis () - millisDHCP >= PERIODODHCP ) 
-    //{
-    //      millisDHCP = millis ();
-    
-    int retorno = Ethernet.maintain ();
-    #ifdef DEBUGDHCP
-    Serial.print ( "Checked DHCP: " );
-    Serial.println ( retorno );
-    if ( retorno != -1 )
+    if ( millis () - millisDHCP >= PERIODODHCP ) 
     {
-        Serial.println ( "Writing log" );
+        millisDHCP = millis ();
         File log = SD.open ( "logDHCP.txt", FILE_WRITE );
-        switch (retorno)
-        {
-        case 1:
-            log.println ( "Renueva IP" );
-            break;
-        case 2:
-            log.println ( "Falla renovar" );
-            break;
-        case 3:
-            log.print ( "Nueva IP: " );
-            log.println ( Ethernet.localIP () );
-            break;
-        case 4:
-            log.println ( "Falla en tomar nueva IP" );
-            break;
-        default:
-            log.println ( "Retorno 0" );
-            break;
-        }
+        log.println ( "<<<<<<MAINTAIN>>>>>>" );
         log.close ();
-    }
-    #endif
-    if ( retorno == 0 || retorno == 1 || retorno == 3 )
-    {
-        if ( contErrorDHCP >= FALLOSDHCP ) 
+        int retorno = Ethernet.maintain ();
+        #ifdef DEBUGDHCP
+        Serial.print ( "Checked DHCP: " );
+        Serial.println ( retorno );
+        if ( retorno != 0 )
         {
-            contErrorDHCP = 0;
-            load (); //millisDHCP y el contador se renuevan en load ()
+            Serial.println ( "Writing log" );
+            File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+            log.println ( "DHCP check:" );
+            log.println ( "Tiempos leases:" );
+            log.print ( "Principal: " );
+            log.print ( *((Ethernet._dhcp)->lease) );
+            log.print ( "\tT1: " );
+            log.print ( *((Ethernet._dhcp)->leaseT1) );
+            log.print ( "\tT2: " );
+            log.print ( *((Ethernet._dhcp)->leaseT2) );
+            log.print ( "\nRebind sec: " );
+            log.print ( *((Ethernet._dhcp)->rebind) );
+            log.print ( "\nRenew sec: " );
+            log.print ( *((Ethernet._dhcp)->renew) );
+            log.println ();
+            log.close ();
+
+            switch (retorno)
+            {
+            case 1:
+                log.println ( "Renueva IP" );
+                break;
+            case 2:
+                log.println ( "Falla renovar" );
+                break;
+            case 3:
+                log.print ( "Nueva IP: " );
+                log.println ( Ethernet.localIP () );
+                break;
+            case 4:
+                log.println ( "Falla en tomar nueva IP" );
+                break;
+            default:
+                log.println ( "Retorno 0" );
+                break;
+            }
+            log.close ();
         }
-        else contErrorDHCP++;
+        #endif
+        if ( retorno == 1 || retorno == 3 ) load ();
     }
-    if ( retorno == 2 || retorno == 4 ) 
-    {
-        //millisDHCP = millis ();
-        contErrorDHCP = 0;
-    }
-    #ifdef DEBUGDHCP
-    //Serial.println ( "Check DHCP retorno: " + String ( retorno ) );
-    #endif
-    //}
 }
 
 bool server::checkStr ( int index, const char *str )
 {
     int largo = strlen ( str );
     return !(header.substring ( index, index + largo ).compareTo ( str ));
+}
+
+String server::debugLog ()
+{
+    Serial.println ( "entra debug log" );
+    String aux = "";
+    File log = SD.open ( "logDHCP.txt", FILE_READ );
+
+    if ( log ) while ( log.available () )
+    {
+        char c =  log.read ();
+        Serial.print ( c );
+        aux.concat ( c );
+    }
+
+    log.close ();
+    return aux;
 }

@@ -10,7 +10,7 @@
 #endif
 
 #define DEBUGSD
-//#define DEBUGMAC
+#define DEBUGMAC
 #define DEBUGDHCP
 //#define DEBUGPET
 //#define DEBUGPUL
