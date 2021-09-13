@@ -24,29 +24,32 @@
 void guardarSD ();
 void (*ptrGuardarSD) () = &guardarSD;
 
-struct DATA data;
+//Objetos:
+struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
 struct PINES pin;
 DHT _dht ( pin.pinDHT , DHT22 );
 tomacorrientes _tomas ( data, pin );
 pulsadores _pulsadores ( pin );
 pantallaOLED _pantalla ( data );
-server _server ( data, ptrGuardarSD );
+server _server ( data, ptrGuardarSD );//Le pasamos el puntero a la función para depender menos de los flags de retorno
 RunningStatistics _zmpt;
 RunningStatistics _ACS [N];
 IPAddress ipStored ( 192, 168, 254, 154 ); //IP hardcodeada para cuando se resetea de fábrica
 StaticJsonDocument <300> configJson;
-byte macDef [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-const int periodoDHT = 2000;
+const byte macDef [6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+
+//Variables miceláneas de tiempo y flags:
 unsigned long millisDHT = 0;
 unsigned long millisPan = 0;
 unsigned long millisAnalog = 0;
-
-const int periodoAnalog = 1000;
-const int periodoPan = (int) 30000;             
 bool flagErrorSD = 0;
 bool flagReset = 0;
 
-unsigned long a = 0;
+const int periodoAnalog = 1000;//TODO: pasar a define
+const int periodoPan = (int) 30000;//TODO: pasar a define          
+const int periodoDHT = 2000;//TODO: pasar a define    
+
+unsigned long a = 0; //Bodge debug
 
 void setup() 
 {         
