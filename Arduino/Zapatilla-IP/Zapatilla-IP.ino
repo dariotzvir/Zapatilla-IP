@@ -25,7 +25,8 @@
 void guardarSD();
 void(*ptrGuardarSD)() = &guardarSD;
 
-struct DATA data;
+//Objetos:
+struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
 struct PINES pin;
 DHT _dht(pin.pinDHT , DHT22);
 tomacorrientes _tomas(data, pin);
@@ -47,7 +48,11 @@ const int periodoPan =(int) 30000;
 bool flagErrorSD = 0;
 bool flagReset = 0;
 
-unsigned long a = 0;
+const int periodoAnalog = 1000;//TODO: pasar a define
+const int periodoPan = (int) 30000;//TODO: pasar a define          
+const int periodoDHT = 2000;//TODO: pasar a define    
+
+unsigned long a = 0; //Bodge debug
 
 void setup() 
 {         
