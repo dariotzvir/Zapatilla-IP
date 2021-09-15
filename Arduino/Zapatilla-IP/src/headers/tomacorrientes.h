@@ -11,10 +11,10 @@
 class tomacorrientes
 {
     public: 
-        tomacorrientes ( DATA &, PINES & );
-        void conm ( int, bool );
-        void invertir ( int );
-        void begin ();
+        tomacorrientes(DATA &, PINES &);
+        void conm(int, bool);
+        void invertir(int);
+        void begin();
 
     private:
         DATA *data;

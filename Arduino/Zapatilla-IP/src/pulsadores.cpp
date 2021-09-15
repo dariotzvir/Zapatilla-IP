@@ -1,57 +1,57 @@
 #include "headers/pulsadores.h"
 
-pulsadores::pulsadores ( PINES &pin )
+pulsadores::pulsadores(PINES &pin)
 {
     this->pin = &pin;
 }
 
-void pulsadores::begin ()
+void pulsadores::begin()
 {
-    for ( int i=0; i<4; i++ )  pinMode ( pin->pulMenu [i], INPUT_PULLUP );
-    for ( int i=0; i<N; i++ )  pinMode ( pin->pulTomas [i], INPUT_PULLUP );
+    for(int i=0; i<4; i++)  pinMode(pin->pulMenu[i], INPUT_PULLUP);
+    for(int i=0; i<N; i++)  pinMode(pin->pulTomas[i], INPUT_PULLUP);
 }
-bool pulsadores::checkTomas ( int p )
+bool pulsadores::checkTomas(int p)
 {
     bool retorno = 0;
-    if ( !digitalRead ( pin->pulTomas [p] ) && !flagTomas [p] ) 
+    if(!digitalRead(pin->pulTomas[p]) && !flagTomas[p]) 
     {
-        flagTomas [p] = 1; 
+        flagTomas[p] = 1; 
         retorno = 1;
     }
-    else if ( digitalRead ( pin->pulTomas [p] ) && flagTomas [p] ) 
+    else if(digitalRead(pin->pulTomas[p]) && flagTomas[p]) 
     {
-        flagTomas [p] = 0;
+        flagTomas[p] = 0;
     }
     return retorno;
 }
-bool pulsadores::checkMenu ( int p )
+bool pulsadores::checkMenu(int p)
 {
     bool retorno = 0;
-    if ( flagTimer && ( p == IZQ || p == DER ) )
+    if(flagTimer && (p == IZQ || p == DER))
     {
-        if ( !digitalRead (pin->pulMenu [p]) && flagMenu [p] && millis ()-millisAcel >= periodo )
+        if(!digitalRead(pin->pulMenu[p]) && flagMenu[p] && millis()-millisAcel >= periodo)
         {
-           // millisAcel = millis ();
-            flagMenu [p] = 0;
+           // millisAcel = millis();
+            flagMenu[p] = 0;
                 
             #ifdef DEBUGPUL
-            Serial.println ( periodo );
+            Serial.println(periodo);
             #endif
-            periodo *= ( periodo > PERIODOMIN ) ? 0.8 : 1;
+            periodo *= ((periodo > PERIODOMIN) ? 0.8 : 1);
         }
     }
-    if ( !digitalRead (pin->pulMenu [p]) && !flagMenu [p] )
+    if(!digitalRead(pin->pulMenu[p]) && !flagMenu[p])
     {
         retorno = 1;
-        flagMenu [p] = 1;
-        millisAcel = millis ();
+        flagMenu[p] = 1;
+        millisAcel = millis();
     }
-    else if ( digitalRead (pin->pulMenu [p]) && flagMenu [p] )
+    else if(digitalRead(pin->pulMenu[p]) && flagMenu[p])
     {
         retorno = 0;
-        flagMenu [p] = 0;
+        flagMenu[p] = 0;
         periodo = PERIODODEF;
-        millisAcel = millis ();
+        millisAcel = millis();
     }
     return retorno;
 }

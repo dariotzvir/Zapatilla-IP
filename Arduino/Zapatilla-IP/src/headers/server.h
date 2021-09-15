@@ -22,39 +22,39 @@
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
 #define FALLOSDHCP 10
-#define PERIODODHCP long(3600000)
+#define PERIODODHCP long(9000000)
 #define GET 0
 #define POST 1
 
 class server: EthernetServer
 {
     public:
-        server ( DATA &data, void (*guardarSD) () );
-        void setup ();
-        int rutina ();
-        void load ();
+        server(DATA &data, void (*guardarSD)());
+        void setup();
+        int rutina();
+        void load();
     private:
         DATA *data;
-        void (*guardarSD) ();
+        void (*guardarSD)();
         int retornoRutina = 0;                               
         String peticion, header;
         unsigned long millisDHCP = 0;
         int contErrorDHCP = 0;
         String bufferClave = "", bufferUser = "";
 
-        void retorno ( bool );
-        void checkDHCP ();
-        bool checkStr ( int, const char * );
-        bool checkAlfaNum ( char );
-        bool checkLogin ( int );
+        void retorno(bool);
+        void checkDHCP();
+        bool checkStr(int, const char *);
+        bool checkAlfaNum(char);
+        bool checkLogin(int);
 
-        String comandoServerGET ( int );
-        String lecturaServer ( int );
-        String encodeIp ( IPAddress & );
-        String encodeTomas ( bool *, float * );
+        String comandoServerGET(int);
+        String lecturaServer(int);
+        String encodeIp(IPAddress &);
+        String encodeTomas(bool *, float *);
 
-        int leerTemp ( String &, int );
-        bool comprobarTempBoundaries ( String &, int, int );
+        int leerTemp(String &, int);
+        bool comprobarTempBoundaries(String &, int, int);
 };
 
 

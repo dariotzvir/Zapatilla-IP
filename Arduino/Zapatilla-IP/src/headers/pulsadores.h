@@ -14,16 +14,16 @@
 class pulsadores
 {
     public: 
-        pulsadores ( PINES & );
-        bool checkMenu ( int );
-        bool checkTomas ( int );
-        void begin ();
+        pulsadores(PINES &);
+        bool checkMenu(int);
+        bool checkTomas(int);
+        void begin();
 
         bool flagTimer = 0;
 
     private:
-        bool flagTomas [5] = {0};
-        bool flagMenu [5] = {0};   //T1, T2, T3, T4, T5, ON, ENT, DER, IZQ
+        bool flagTomas[5] = {0};
+        bool flagMenu[5] = {0};   //T1, T2, T3, T4, T5, ON, ENT, DER, IZQ
         unsigned long millisAcel = 0;
         int periodo = PERIODODEF;
         PINES *pin;
