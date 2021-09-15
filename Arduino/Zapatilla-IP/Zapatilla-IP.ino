@@ -101,7 +101,7 @@ void setup()
     _dht.begin();
 
     pinMode(pin.pinZmpt, INPUT);
-    _zmpt.setWindowSecs(70.0/50);
+    _zmpt.setWindowSecs(20.0/50);
 
     for(int i=0; i<N; i++)
     {
@@ -382,28 +382,25 @@ void crearSDdefecto()
 
 void funAnalog()
 {
-    for(int i=0; i<N; i++) _ACS[i].input(analogRead(pin.ACS[i])); 
-    _zmpt.input(analogRead(pin.pinZmpt));
-    
-    #ifdef DEBUGANALOG
-    //Serial.print("Sigma:");
-    //Serial.print(_zmpt.sigma());
-    //Serial.print(", ");
-    Serial.print("Tension:");
-    Serial.print(data.sensZMPT*(_zmpt.sigma()-data.yCalibZMPT));
-    Serial.print(", ");
-    Serial.print("Tiempo:");
-    Serial.print(millis()-a+210);
-    Serial.print("\r\n");
-    a = millis();
-    #endif
-
-    /*if(millis() - millisAnalog >= 1500)
+    _zmpt.setInitialValue ( 0, 0 );
+    for(int j=0; j<5; j++)
     {
-        millisAnalog = millis();
-        for(int i=0; i<N; i++) data.corriente[i] = data.sensACS*(_ACS[i].sigma()-data.yCalibACS);
-        data.tension = data.sensZMPT*(_zmpt.sigma()-data.yCalibZMPT);
-    }*/
+        for(int i=0; i<N; i++) _ACS[i].input(analogRead(pin.ACS[i])); 
+        _zmpt.input(analogRead(pin.pinZmpt));
+        
+        #ifdef DEBUGANALOG
+        Serial.print("\n");
+        Serial.print("Tension:");
+        Serial.print(data.sensZMPT*(_zmpt.sigma()-data.yCalibZMPT));
+        Serial.print(", ");
+        Serial.print("Tiempo:");
+        Serial.print(millis()-a+210);
+        Serial.print("\r\n");
+        a = millis();
+        #endif
+
+        delay ( 1 );
+    }
 }
 
 void funServer()
