@@ -5,7 +5,6 @@
 #include <SD.h>
 #include <ArduinoJson.h>
 #include <avr/wdt.h>
-#include <TimerOne.h>
 
 #define N 5
 //#define DEBUGSD
