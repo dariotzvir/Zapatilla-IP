@@ -1,6 +1,4 @@
 {
     "port": "/dev/cu.usbmodemFD121",
-    "board": "arduino:avr:mega",
-    "programmer": "arduino:avrisp",
-    "sketch": "Arduino/Zapatilla-IP/Zapatilla-IP.ino"
+    "board": "arduino:avr:mega"
 }
