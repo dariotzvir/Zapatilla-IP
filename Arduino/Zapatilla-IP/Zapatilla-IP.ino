@@ -52,6 +52,8 @@ void setup()
 {         
     Serial.begin (9600);
 
+    data.ipDef = ipStored;
+
     SD.begin (4);
     SD.end ();
     if ( !SD.begin (4) ) 
@@ -75,10 +77,6 @@ void setup()
     
     _pantalla.setup (); 
     _pantalla.pantallaBoot ();
-    data.ipDef = ipStored;
-
-    //pinMode ( pin.pinRst, INPUT );
-    //attachInterrupt ( digitalPinToInterrupt ( pin.pinRst ), intReset, RISING );
 
     #ifdef DEBUGMAC
     for ( int i : data.mac ) Serial.println ( i, 16 );
@@ -112,7 +110,6 @@ void setup()
 
 void loop() 
 {
-    if ( flagReset ) reset ();
     funDHT ();
     funPul ();
     funAnalog ();
@@ -414,5 +411,3 @@ void funServer ()
     }
     //if ( retorno > 0 ) guardarSD ();
 }
-
-void intReset (){flagReset = 1;}

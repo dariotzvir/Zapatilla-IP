@@ -1,7 +1,6 @@
 {
-    "port": "COM7",
+    "port": "/dev/cu.SLAB_USBtoUART",
     "board": "arduino:avr:mega",
     "programmer": "arduino:avrisp",
-    "sketch": "Arduino\\Zapatilla-IP\\Zapatilla-IP.ino",
-    "output": ".\\bin"
+    "sketch": "Arduino/Zapatilla-IP/Zapatilla-IP.ino"
 }

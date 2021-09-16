@@ -479,6 +479,8 @@ void server::checkDHCP ()
         {
             Serial.println ( "Writing log" );
             File log = SD.open ( "logDHCP.txt", FILE_WRITE );
+            log.print ( "Maintain return: " );
+            log.println ( retorno );
             log.println ( "DHCP check:" );
             log.println ( "Tiempos leases:" );
             log.print ( "Principal: " );
