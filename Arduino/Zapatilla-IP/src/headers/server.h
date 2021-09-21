@@ -26,6 +26,14 @@
 #define GET 0
 #define POST 1
 
+enum rutas
+{
+    HOME,
+    CMD,
+    LEC,
+    ERROR=-1
+};
+
 class server: EthernetServer
 {
     public:
@@ -34,19 +42,31 @@ class server: EthernetServer
         int rutina();
         void load();
     private:
+
+        String req, message;
+        void parseGET (), parsePOST ();
+        void lectura();
+        void devolucion();
+        bool tipo=0;
+        int ruta=0;
+        String cmd="";
+        String param="";
+        String clave="";
+        String user="";
+
         DATA *data;
         void (*guardarSD)();
-        int retornoRutina = 0;                               
-        String peticion, header;
+        int retornoRutina = 0;       
         unsigned long millisDHCP = 0;
         int contErrorDHCP = 0;
         String bufferClave = "", bufferUser = "";
 
         void retorno(bool);
+        void conversion();
         void checkDHCP();
         bool checkStr(int, const char *);
         bool checkAlfaNum(char);
-        bool checkLogin(int);
+        bool checkLogin();
 
         String comandoServerGET(int);
         String lecturaServer(int);
@@ -55,6 +75,10 @@ class server: EthernetServer
 
         int leerTemp(String &, int);
         bool comprobarTempBoundaries(String &, int, int);
+
+        
+
+        
 };
 
 

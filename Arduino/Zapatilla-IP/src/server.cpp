@@ -52,92 +52,130 @@ void server::load()
 int server::rutina()
 {
     retornoRutina = -1;
+    req="";
+    message="";
+
     if(data->dhcp) checkDHCP();
+
     cmdCliente.flush();
-    cmdCliente = available();
-    bool lineaEnBlanco = 1;
-    char tipoPeticion = 0;
+    cmdCliente=available();
 
     if(cmdCliente)
     {
-        retornoRutina = 0;
-        while(cmdCliente.connected())
-        {
-            char c;
-            if(cmdCliente.available())
-            {
-                c = cmdCliente.read();
-                if(tipoPeticion == 0) tipoPeticion = c;
-                #ifdef DEBUGPET
-                Serial.print(c);
-                #endif
-                if(header.length() < 100) header += c;
-                else return retornoRutina;
-            }
+        #ifdef DEBUGPET
+        Serial.print("\nConectado\n");
+        #endif
+        retornoRutina=0;
 
-            if(tipoPeticion == 'G' && c == '\n')
-            {
-                //Serial.println("\nRetorno GET");
-                retorno(GET);
-                delay(1);
-                cmdCliente.stop();
-                break;
-            }
-            //Leer POST
-            /*if(lineaEnBlanco && c == '\n')
-            {
-                while(cmdCliente.available()) 
-                {
-                    c = cmdCliente.read();
-                    peticion += c;
-                }
-                cmdCliente.println("HTTP/1.1 200 OK");
-                cmdCliente.println("Content-Type: text/plain");
-                cmdCliente.println("Connection: close");
-                cmdCliente.println(); 
-                cmdCliente.println(peticion);
-                Serial.println(peticion);
+        lectura();  
+        conversion();
+        devolucion();
 
-                peticion = "";
-
-                delay(1);
-                cmdCliente.stop();
-                cmdCliente.clo
-                break;
-            }
-
-            if(c == '\n') lineaEnBlanco = 1;
-            else if(c != '\r') lineaEnBlanco = 0;*/
-        }
+        delay(1);
+        cmdCliente.stop();
     }
+
     if(retornoRutina > 0)(*guardarSD)();
     return retornoRutina;   
+}
+
+void server::lectura()
+{
+    while(cmdCliente.connected())
+    {
+        String resto="";
+        char c=0;
+        while(c!='\n') 
+        {
+            c=cmdCliente.read();
+            req.concat(c);
+        }
+
+
+        Serial.println("Request: ");
+        Serial.println(req);
+
+        if(req[0]!='G')
+        {
+            while(c!=-1)
+            {
+                c=cmdCliente.read();
+                resto.concat(c);
+            }
+            int index=resto.indexOf("\r\n\r\n");
+            message=resto.substring(index+4,-1);
+            Serial.println("Message: ");
+            Serial.println(message);
+
+            break;
+        }
+        else break;
+    }
+}
+
+void server::conversion()
+{                //01234        012345
+    int index=4; //GET /...     POST /
+    if(tipo==POST) index=5;
+    
+    //GET /cmd     POST /cmd
+    //GET /lec     POST /lec
+    //GET / HT     POST / HT
+    String ruteStr=req.substring(index, index+4);
+    Serial.println("Ruta comando: " + ruteStr);
+
+    if(ruteStr=="/ HT") ruta=HOME;
+    else if(ruteStr=="/cmd" || ruteStr=="/CMD") ruta=CMD;
+    else if(ruteStr=="/lec" || ruteStr=="/LEC") ruta=LEC;
+    else ruta=ERROR;
+
+    if(ruta==CMD || ruta==LEC)
+    {
+        if(tipo==GET) parseGET();
+        if(tipo==POST) parsePOST();
+    }
+}
+
+void server::devolucion()
+{
+    cmdCliente.println("HTTP/1.1 200 OK");
+    cmdCliente.println("Content-Type: text/plain");
+    cmdCliente.println("Connection: close");
+    cmdCliente.println(); 
+    cmdCliente.println();
+}
+
+void server::parseGET()
+{
+    int ini=req.indexOf('?');
+    int fin=req.indexOf(' ');
+
+    String buf=req.subtring(ini, fin);
+
+    
 }
 
 void server::retorno(bool tipo)
 {
     String devolucion = "Peticion erronea";
 
-    String cmd = header.substring(4, 8);
+    String cmd = req.substring(4, 8);
 
     if(!cmd.compareTo("/ HT") > 0) devolucion = "Zapatilla IP OK";
-    else if(checkLogin(8))
+    if(tipo==GET && checkLogin())
     {
-        if(!cmd.compareTo("/lec")) devolucion = lecturaServer(8);
-        else if(tipo == GET && !cmd.compareTo("/cmd") > 0) devolucion = comandoServerGET(8);
+        if(!cmd.compareTo("/lec") > 0) devolucion = lecturaServer(8);
+        else if(!cmd.compareTo("/cmd") > 0) devolucion = comandoServerGET(8);
+    }
+    else if(checkLogin())
+    {
         else if(tipo == POST && !cmd.compareTo("/cmd") > 0) devolucion = comandoServerGET(8);
     }
-
-    cmdCliente.println("HTTP/1.1 200 OK");
-    cmdCliente.println("Content-Type: text/plain");
-    cmdCliente.println("Connection: close");
-    cmdCliente.println(); 
-    cmdCliente.println(devolucion);
-
-    header = "";
 }
 
-bool server::checkLogin(int index)
+void server::parseGET()
+
+bool server::checkLogin()
 {
     /*
     *   GET /cmd?admin+12345+tempmax=123 HTTP/1.1
@@ -146,13 +184,10 @@ bool server::checkLogin(int index)
     */
     bool retorno = 0;
     String aux = '?' + data->usuario + '+' + data->clave; //Formatea a como deberían estar el usuario y contraseña en la peticion HTTP
-    String cmd = header.substring(index, index+aux.length()); //Selecciona el segmento de string donde deberia estar el usuario y contraseña
+    String cmd = req.substring(8, 8+aux.length()); //Selecciona el segmento de string donde deberia estar el usuario y contraseña
     if(cmd.compareTo(aux) == 0) //Chequea si son iguales
     {
-        header.remove(index+1, aux.length()); //Remueve el sector de contraseña y usuario así se pueden utiliza los metodos que ya tenía escritos
-        #ifdef DEBUGPET
-        Serial.println(header);
-        #endif
+        header.remove(8+1, aux.length()); //Remueve el sector de contraseña y usuario así se pueden utiliza los metodos que ya tenía escritos
         retorno = 1;
     }
     return retorno;

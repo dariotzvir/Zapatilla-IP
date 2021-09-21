@@ -53,7 +53,8 @@ unsigned long a = 0; //Bodge debug
 void setup() 
 {         
     Serial.begin(BAUD2);
-
+    data.ipDef = ipStored;
+    
     //Timer1.initialize(10000);
     //Timer1.attachInterrupt(funAnalog);
 
@@ -76,7 +77,6 @@ void setup()
     
     _pantalla.setup(); 
     _pantalla.pantallaBoot();
-    data.ipDef = ipStored;
 
     pinMode(pin.pinRst, INPUT);
     attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, RISING);
@@ -382,7 +382,7 @@ void crearSDdefecto()
 void funAnalog()
 {
     _zmpt.setInitialValue ( 0, 0 );
-    for(int j=0; j<5; j++)
+    for(int j=0; j<1; j++)
     {
         for(int i=0; i<N; i++) _ACS[i].input(analogRead(pin.ACS[i])); 
         _zmpt.input(analogRead(pin.pinZmpt));
