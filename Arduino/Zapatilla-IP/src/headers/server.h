@@ -23,62 +23,48 @@
 #define GUARDADO "Guardado"
 #define FALLOSDHCP 10
 #define PERIODODHCP long(9000000)
-#define GET 0
-#define POST 1
 
-enum rutas
+enum RUTAS
 {
     HOME,
     CMD,
     LEC,
     ERROR=-1
 };
+enum PET
+{
+    GET,
+    POST
+};
 
 class server: EthernetServer
 {
     public:
         server(DATA &data, void (*guardarSD)());
+
         void setup();
-        int rutina();
         void load();
+
+        int8_t rutina();
     private:
-
-        String req, message;
-        void parseGET (), parsePOST ();
-        void lectura();
-        void devolucion();
-        bool tipo=0;
-        int ruta=0;
-        String cmd="";
-        String param="";
-        String clave="";
-        String user="";
-
         DATA *data;
-        void (*guardarSD)();
-        int retornoRutina = 0;       
-        unsigned long millisDHCP = 0;
-        int contErrorDHCP = 0;
-        String bufferClave = "", bufferUser = "";
-
-        void retorno(bool);
-        void conversion();
-        void checkDHCP();
-        bool checkStr(int, const char *);
-        bool checkAlfaNum(char);
-        bool checkLogin();
-
-        String comandoServerGET(int);
-        String lecturaServer(int);
-        String encodeIp(IPAddress &);
-        String encodeTomas(bool *, float *);
-
-        int leerTemp(String &, int);
-        bool comprobarTempBoundaries(String &, int, int);
+        void (*guardarSD)();    
+        int8_t retornoRutina = 0;   
 
         
+        bool parseGET(), parsePOST(), parseStr(String str);
+        void lectura();
+        void parse();
+        void checkLogin();
+        void ejecutarCmd();
+        String retornoLecturas();
+        void devolucion();
 
-        
+        bool errorParse=0, errorCmd=0;
+        uint8_t tipo=0;//Tipo de peticion HTTP 0:GET 1:POST
+        uint8_t ruta=0;//Rutas de las peticiones HTTP 0:/ 1:/cmd 2:/lec -1:error
+        String req, message;
+        String user, clave, cmd, param;
 };
 
 

@@ -7,10 +7,10 @@ pulsadores::pulsadores(PINES &pin)
 
 void pulsadores::begin()
 {
-    for(int i=0; i<4; i++)  pinMode(pin->pulMenu[i], INPUT_PULLUP);
-    for(int i=0; i<N; i++)  pinMode(pin->pulTomas[i], INPUT_PULLUP);
+    for(uint8_t i=0; i<4; i++)  pinMode(pin->pulMenu[i], INPUT_PULLUP);
+    for(uint8_t i=0; i<N; i++)  pinMode(pin->pulTomas[i], INPUT_PULLUP);
 }
-bool pulsadores::checkTomas(int p)
+bool pulsadores::checkTomas(uint8_t p)
 {
     bool retorno = 0;
     if(!digitalRead(pin->pulTomas[p]) && !flagTomas[p]) 
@@ -24,7 +24,7 @@ bool pulsadores::checkTomas(int p)
     }
     return retorno;
 }
-bool pulsadores::checkMenu(int p)
+bool pulsadores::checkMenu(uint8_t p)
 {
     bool retorno = 0;
     if(flagTimer && (p == IZQ || p == DER))

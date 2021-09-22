@@ -12,8 +12,8 @@ class tomacorrientes
 {
     public: 
         tomacorrientes(DATA &, PINES &);
-        void conm(int, bool);
-        void invertir(int);
+        void conm(uint8_t, bool);
+        void invertir(uint8_t);
         void begin();
 
     private:

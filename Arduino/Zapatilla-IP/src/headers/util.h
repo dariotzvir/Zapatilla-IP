@@ -48,11 +48,11 @@ struct DATA
     int tension = 220;
     float temp, hum;
 
-    int tempMax = 125, tempMin = -40;
+    int8_t tempMax = 125, tempMin = -40;
     String usuario = "admin", clave = "12345";
 
     bool dhcp = 0;
-    int puerto = 80;
+    uint16_t puerto = 80;
     byte mac[6] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
     IPAddress ipDef;
     char macString[30];
@@ -68,7 +68,7 @@ struct DATA
     {
         char buf[30];
         char hexDigit;
-        for(int i=0; i<6; i++)
+        for(uint8_t i=0; i<6; i++)
         {
             buf[i*5] = '0'; 
             buf[i*5+1] = 'x';
@@ -112,17 +112,17 @@ struct DATA
 
 struct PINES
 {
-    const int tomas[N] = {28, 29, 30, 31, 32};
-    const int leds[N] = {34, 35, 36, 37, 38};
-    const int pulTomas[N] = {22, 23, 24, 25, 26};
-    const int ACS[N] = {A8, A9, A10, A11, A12};
+    const uint8_t tomas[N] = {28, 29, 30, 31, 32};
+    const uint8_t leds[N] = {34, 35, 36, 37, 38};
+    const uint8_t pulTomas[N] = {22, 23, 24, 25, 26};
+    const uint8_t ACS[N] = {A8, A9, A10, A11, A12};
 
-    const int pulMenu[4] = {40,42,41,43}; //ONOFF ENT DER IZQ
+    const uint8_t pulMenu[4] = {40,42,41,43}; //ONOFF ENT DER IZQ
     
-    const int pinZmpt = A13;
-    const int pinRst = 18;
-    int pinSD = 4;
-    const int pinDHT = 19;
+    const uint8_t pinZmpt = A13;
+    const uint8_t pinRst = 18;
+    const uint8_t pinSD = 4;
+    const uint8_t pinDHT = 19;
 };
 
 #endif
