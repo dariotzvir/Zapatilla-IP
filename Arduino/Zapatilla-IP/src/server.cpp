@@ -30,12 +30,12 @@ void server::load()
     if(data->dhcp == 1) 
     {
         #ifdef DEBUGDHCP
-        Serial.println(cmd=="DHCP");
+        Serial.println("DHCP");
         #endif
         if(Ethernet.begin(data->mac) == 0) 
         {
             #ifdef DEBUGDHCP
-            Serial.println(cmd=="Falla DHCP");
+            Serial.println("Falla DHCP");
             #endif
             Ethernet.begin(data->mac, data->ipDef);
             data->dhcp = 0;
@@ -49,9 +49,7 @@ void server::load()
 int8_t server::rutina()
 {
     retornoRutina = -1;
-    req="";
-    message="";
-
+    
     //if(data->dhcp) checkDHCP();
 
     cmdCliente.flush();
@@ -59,13 +57,20 @@ int8_t server::rutina()
 
     if(cmdCliente)
     {
+        req="";
+        message="";
+        errorParse=0;
+        errorCmd=0;
+        errorLogin=0;
+
         #ifdef DEBUGPET
-        Serial.print(cmd=="\nConectado\n");
+        Serial.print("\nConectado\n");
         #endif
         retornoRutina=0;
 
         lectura();  
-        parse();
+        conversion();
+        if(ruta!=ERROR && ruta!=HOME) checkLogin();
         if(ruta==CMD && !errorParse) ejecutarCmd();
         devolucion();
 
@@ -91,7 +96,7 @@ void server::lectura()
         }
         req.remove(req.length()-1);
 
-        Serial.print(cmd=="Request: ");
+        Serial.print("Request: ");
         Serial.println(req);
 
         if(req[0]!='G')
@@ -101,9 +106,9 @@ void server::lectura()
                 c=cmdCliente.read();
                 resto.concat(c);
             }
-            int index=resto.indexOf(cmd=="\r\n\r\n");
+            int index=resto.indexOf("\r\n\r\n");
             message=resto.substring(index+4,-1);
-            Serial.print(cmd=="Message: ");
+            Serial.print("Message: ");
             Serial.println(message);
 
             tipo=POST;
@@ -132,9 +137,9 @@ void server::conversion()
         else ruta=ERROR;
     }
 
-    Serial.print(cmd=="Ruta: ");
+    Serial.print("Ruta: ");
     Serial.print(ruteStr);
-    Serial.println(cmd=="$");
+    Serial.println("$");
 
     if(ruta!=ERROR)
     {
@@ -145,9 +150,15 @@ void server::conversion()
     }
     if(ruta==CMD || ruta==LEC)
     {
-        if(tipo==GET) errorParse=parseGET();
-        if(tipo==POST) errorParse=parsePOST();
+        if(tipo==GET) errorParse=!parseGET();
+        if(tipo==POST) errorParse=!parsePOST();
     }
+}
+
+void server::checkLogin()
+{
+    if(clave!=data->clave) errorLogin=1;
+    if(user!=data->usuario) errorLogin=1;
 }
 
 void server::ejecutarCmd()
@@ -157,16 +168,17 @@ void server::ejecutarCmd()
 
 void server::devolucion()
 {
-    cmdCliente.println(cmd=="HTTP/1.1 200 OK");
-    cmdCliente.println(cmd=="Content-Type: text/plain");
-    cmdCliente.println(cmd=="Connection: close");
+    cmdCliente.println("HTTP/1.1 200 OK");
+    cmdCliente.println("Content-Type: text/plain");
+    cmdCliente.println("Connection: close");
     cmdCliente.println(); 
     
-    if(ruta==HOME) cmdCliente.println(cmd=="Zapatilla IP OK");
-    if(ruta==ERROR) cmdCliente.println(cmd=="Ruta incorrecta");
-    else if(errorParse) cmdCliente.println(cmd=="Formato de peticion incorrecto");
+    if(ruta==HOME) cmdCliente.println("Zapatilla IP OK");
+    else if(ruta==ERROR) cmdCliente.println("Ruta incorrecta");
+    else if(errorLogin) cmdCliente.println("Login incorrecto");
+    else if(errorParse) cmdCliente.println("Formato de peticion incorrecto");
     else if(ruta==LEC) cmdCliente.println(retornoLecturas());
-    else if(ruta==CMD) cmdCliente.println( (errorCMD ? "Comando erroneo", "Comando ejecutado") );
+    else if(ruta==CMD) cmdCliente.println( (errorCmd ? "Comando erroneo" : "Comando ejecutado") );
 }
 
 bool server::parseGET()
@@ -174,20 +186,15 @@ bool server::parseGET()
     int ini=req.indexOf('?');
     int fin=req.indexOf(' ', ini);
 
-    Serial.print(cmd=="Inicio: ");
-    Serial.println(ini);
-    Serial.print(cmd=="Fin: ");
-    Serial.println(fin);
-
     String buf=req.substring(ini+1, fin);
 
-    return (parse (buf));
+    return (parseStr (buf));
 }
 bool server::parsePOST()
 {
     message.remove(message.length()-1);
 
-    return (parse (message));
+    return (parseStr (message));
 }
 bool server::parseStr(String str)
 {
@@ -213,14 +220,19 @@ bool server::parseStr(String str)
 
         cmd=str.substring(finClave+1, finCmd);
         param=str.substring(finCmd+1);
+        Serial.println("***COMANDO***");
     }
-    else cmd=str.substring(finClave+1);
+    else
+    {
+        cmd=str.substring(finClave+1);
+        Serial.println("***LECTURA***");
+    } 
 
-    Serial.println(cmd=="Str: " + str + "$");
-    Serial.println (cmd=="User: " + user + "$");
-    Serial.println (cmd=="Clave: " + clave + "$");
-    Serial.println (cmd=="Cmd: " + cmd + "$");
-    Serial.println (cmd=="Param: " + param + "$");
+    Serial.println("Str: " + str + "$");
+    Serial.println("User: " + user + "$");
+    Serial.println("Clave: " + clave + "$");
+    Serial.println("Cmd: " + cmd + "$");
+    Serial.println("Param: " + param + "$");
 
     return 1;
 }
@@ -248,20 +260,30 @@ String server::retornoLecturas ()
 
         serializeJsonPretty(jsonRequest, r);
     }
-    else if(cmd=="tempmax") r=data->tempMax + 'C';
-    else if(cmd=="tempmin") r=data->tempMin + 'C';
-    else if(cmd=="temp ") r=data->temp + 'C';
-    else if(cmd=="hum") r=data->hum + '%' ;
-    else if(cmd=="tension") r=data->tension + 'V' ;
+    else if(cmd=="tempmax") r= String(data->tempMax) + 'C';
+    else if(cmd=="tempmin") r= String(data->tempMin) + 'C';
+    else if(cmd=="temp ") r= String(data->temp) + 'C';
+    else if(cmd=="hum") r= String(data->hum) + '%' ;
+    else if(cmd=="tension") r= String(data->tension) + 'V' ;
     else if(cmd=="dhcp") r=(data->dhcp ? "Si" : "No");
-    else if(cmd=="puerto") r=data->puerto;
+    else if(cmd=="puerto") r= String(data->puerto);
     else if(cmd=="ipdef") r=data->ipString;
     else if(cmd=="mac") r=data->macString;
     else if(cmd=="tomas")
     {
         StaticJsonDocument <300> jsonRequest;
-        for(int i=0; i<N; i++)jsonRequest["estTomas"][i] = data->estTomas[i];
+        for(int i=0; i<N; i++)
+        jsonRequest["estTomas"][i] = data->estTomas[i];
+        serializeJsonPretty(jsonRequest, r);
+    } 
+    else if(cmd=="corriente")
+    {
+        StaticJsonDocument <300> jsonRequest;
+        for(int i=0; i<N; i++)
+        jsonRequest["corriente"][i] = data->corriente[i];
         serializeJsonPretty(jsonRequest, r);
     } 
     else r="Peticion errornea";
+
+    return r;
 }

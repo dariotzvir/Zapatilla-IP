@@ -50,17 +50,17 @@ class server: EthernetServer
         DATA *data;
         void (*guardarSD)();    
         int8_t retornoRutina = 0;   
-
         
-        bool parseGET(), parsePOST(), parseStr(String str);
         void lectura();
-        void parse();
+        void conversion();
         void checkLogin();
         void ejecutarCmd();
-        String retornoLecturas();
         void devolucion();
 
-        bool errorParse=0, errorCmd=0;
+        String retornoLecturas();
+        bool parseGET(), parsePOST(), parseStr(String str);
+
+        bool errorParse=0, errorCmd=0, errorLogin=0;
         uint8_t tipo=0;//Tipo de peticion HTTP 0:GET 1:POST
         uint8_t ruta=0;//Rutas de las peticiones HTTP 0:/ 1:/cmd 2:/lec -1:error
         String req, message;
