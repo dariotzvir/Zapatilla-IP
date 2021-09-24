@@ -40,7 +40,7 @@ enum PET
 class server: EthernetServer
 {
     public:
-        server(DATA &data, void (*guardarSD)());
+        server(DATA &data);
 
         void setup();
         void load();
@@ -48,7 +48,6 @@ class server: EthernetServer
         int8_t rutina();
     private:
         DATA *data;
-        void (*guardarSD)();    
         int8_t retornoRutina = 0;   
         
         void lectura();
@@ -57,14 +56,26 @@ class server: EthernetServer
         void ejecutarCmd();
         void devolucion();
 
+        bool cambioMac();
+        bool cambioTemp(bool flag);
+        bool cambioTomas();
+        bool cambioIp();
+        bool cambioDhcp();
+        bool cambioPuerto();
+        bool cambioUser();
+        bool cambioClave();
+        bool verificarCambio();
+
         String retornoLecturas();
         bool parseGET(), parsePOST(), parseStr(String str);
 
-        bool errorParse=0, errorCmd=0, errorLogin=0;
+        bool errorParse=0, errorCmd=0, errorLogin=0, errorParam=0;
         uint8_t tipo=0;//Tipo de peticion HTTP 0:GET 1:POST
         uint8_t ruta=0;//Rutas de las peticiones HTTP 0:/ 1:/cmd 2:/lec -1:error
         String req, message;
         String user, clave, cmd, param;
+
+        String bufferClave, bufferUser;
 };
 
 

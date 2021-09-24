@@ -3,14 +3,17 @@
 #include <SD.h>
 #include <utility/w5100.h>
 
-#define alfaNum(c)((c >= '0' && c <= '9') ||(c >= 'A' && c <= 'Z') ||(c >= 'a' && c <= 'z'))
+#define isBool(c)(c=='48' || c=='49')
+#define isInteger(c)(c >= '0' && c <= '9') 
+#define isAlfaNum(c)((c >= '0' && c <= '9') ||(c >= 'A' && c <= 'Z') ||(c >= 'a' && c <= 'z'))
+#define isHexadecimalDigit(c)((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))
+#define fromCharToInt(c)(c-48)
 
 EthernetClient cmdCliente;
 
-server::server(DATA &data, void(*guardarSD)()): EthernetServer(data.puerto)
+server::server(DATA &data): EthernetServer(data.puerto)
 {
     this->data = &data;
-    this->guardarSD = guardarSD;
 }
 
 void server::setup()
@@ -78,7 +81,7 @@ int8_t server::rutina()
         cmdCliente.stop();
     }
 
-    if(retornoRutina > 0)(*guardarSD)();
+    //if(retornoRutina > 0)(*guardarSD)();
     return retornoRutina;   
 }
 
@@ -108,7 +111,7 @@ void server::lectura()
             }
             int index=resto.indexOf("\r\n\r\n");
             message=resto.substring(index+4,-1);
-            Serial.print("Message: ");
+            Serial.print("Message: $");
             Serial.println(message);
 
             tipo=POST;
@@ -137,7 +140,7 @@ void server::conversion()
         else ruta=ERROR;
     }
 
-    Serial.print("Ruta: ");
+    Serial.print("Ruta: $");
     Serial.print(ruteStr);
     Serial.println("$");
 
@@ -163,7 +166,20 @@ void server::checkLogin()
 
 void server::ejecutarCmd()
 {
+    cmd.toLowerCase();
 
+    errorParam=0;
+
+    if(cmd=="mac") errorParam=!cambioMac();
+    else if(cmd=="tempmax") errorParam=!cambioTemp(0);
+    else if(cmd=="tempmin") errorParam=!cambioTemp(1);
+    else if(cmd=="tomas") errorParam=!cambioTomas();
+    else if(cmd=="ipdef") errorParam=!cambioIp();
+    else if(cmd=="dhcp") errorParam=!cambioDhcp();
+    else if(cmd=="puerto") errorParam=!cambioPuerto();
+    else if(cmd=="usuario" || cmd=="user") errorParam=!cambioUser();
+    else if(cmd=="clave") errorParam=!cambioClave();
+    else if(cmd=="verificar") errorParam=!verificarCambio();
 }
 
 void server::devolucion()
@@ -177,10 +193,10 @@ void server::devolucion()
     else if(ruta==ERROR) cmdCliente.println("Ruta incorrecta");
     else if(errorLogin) cmdCliente.println("Login incorrecto");
     else if(errorParse) cmdCliente.println("Formato de peticion incorrecto");
+    else if(errorParam) cmdCliente.println("Formato de parametro incorrecto");
     else if(ruta==LEC) cmdCliente.println(retornoLecturas());
     else if(ruta==CMD) cmdCliente.println( (errorCmd ? "Comando erroneo" : "Comando ejecutado") );
 }
-
 bool server::parseGET()
 {
     int ini=req.indexOf('?');
@@ -228,15 +244,14 @@ bool server::parseStr(String str)
         Serial.println("***LECTURA***");
     } 
 
-    Serial.println("Str: " + str + "$");
-    Serial.println("User: " + user + "$");
-    Serial.println("Clave: " + clave + "$");
-    Serial.println("Cmd: " + cmd + "$");
-    Serial.println("Param: " + param + "$");
+    Serial.println("Str: $" + str + "$");
+    Serial.println("User: $" + user + "$");
+    Serial.println("Clave: $" + clave + "$");
+    Serial.println("Cmd: $" + cmd + "$");
+    Serial.println("Param: $" + param + "$");
 
     return 1;
 }
-
 String server::retornoLecturas ()
 {
     String r;
@@ -283,7 +298,149 @@ String server::retornoLecturas ()
         jsonRequest["corriente"][i] = data->corriente[i];
         serializeJsonPretty(jsonRequest, r);
     } 
-    else r="Peticion errornea";
+    else r="Peticion erronea";
 
     return r;
+}
+bool server::cambioMac()
+{
+    int n=param.length();
+    int contEsp=0; //Contador de espacios de losdiferentes campos
+    byte macAux[6], buffer=0;
+    for(auto i : macAux) i=0;
+
+    Serial.print("Buffer MAC decode: ");
+
+    for(int i=0; i<n && contEsp<6; i++)
+    {
+        char c=toupper(param[i]);
+
+        if(!isHexadecimalDigit(c) && c!='+') return 0;
+        if(c=='+')
+        {
+            Serial.print('$');
+            Serial.print(buffer);
+            Serial.print('$');
+            macAux[contEsp++]=buffer;
+            buffer=0;
+        }
+        if(c>='0' && c<='9') buffer=buffer*16 + i-'0';
+        else if(c>='A' && c<='F') buffer=buffer*16 + 10 + i-'A';
+    }
+
+    Serial.println();
+
+    macAux[contEsp++]=buffer;
+    if(contEsp!=6) return 0;
+    for(int i=0; i<6; i++) data->mac[i]=macAux[i];
+
+    data->actMacString();
+
+    Serial.print ("Mac decode: ");
+    for(int i=0; i<6; i++) 
+    {
+        Serial.print('$');
+        Serial.print(macAux[i]);
+        Serial.print('$');
+    }
+    Serial.println();
+
+    return 1;
+}
+bool server::cambioTemp(bool flag)
+{
+    int n=param.length();
+    for(int i=0; i<n; i++) if(isInteger(param[i])) return 0;
+
+    int aux=param.toInt();
+    Serial.print("Temp decode: $");
+    Serial.print(aux);
+    Serial.println('$');
+
+    if(flag && aux<=125 && aux>=data->tempMin) data->tempMax=aux;
+    if(!flag && aux<=-40 && aux<=data->tempMax) data->tempMin=aux;
+
+    return 1;
+}
+bool server::cambioTomas()
+{
+    if(param.length()!=3 && !isInteger(param[0]) && param[1]=='+' && !isBool(param [2])) return 0;
+    
+    int toma=fromCharToInt(param[0])-1;
+    int accion=fromCharToInt(param[2]);
+
+    Serial.println("Toma decode: $" + String(toma) + "$");
+    Serial.println("Accion decode: $" + String(accion) + "$");
+
+    if(isBool (accion) || toma >=4 || toma<=0) errorParam=1;
+    else data->estTomas[toma]=accion;
+    return 1;
+}
+bool server::cambioIp()
+{
+    IPAddress aux;
+    if(!aux.fromString(param)) return 0;
+
+    Serial.println("IP decode: $" + String(aux) + "$");
+
+    data->ipDef=aux;
+    data->actIpString();
+
+    if (!data->dhcp);
+    return 1;
+}
+bool server::cambioDhcp()
+{
+    int n=param.length();
+    if(n!=1) return 0;
+    for(int i=0; i<n; i++) if(!isBool(param[i])) return 0;
+
+    Serial.println("DHCPdecode: $" + param + "$");
+
+    data->dhcp=param.toInt ();
+    return 1;
+}
+bool server::cambioPuerto()
+{
+    int n=param.length();
+    for(int i=0; i<n; i++) if(!isInteger(param[i])) return 0;
+
+    Serial.println("Puerto decode: $" + param + "$");
+
+    data->puerto=param.toInt ();
+    return 1;
+}
+bool server::cambioClave()
+{
+    int n=param.length();
+    if(n<5 || n>15) return 0;
+    for(char c : param) if(!isAlfaNum(c)) return 0;
+
+    Serial.println("Clave decode: $" + param + "$");
+
+    bufferClave=param;    
+    return 1;
+}
+bool server::cambioUser()
+{
+    int n=param.length();
+    if(n<5 || n>15) return 0;
+    for(char c : param) if(!isAlfaNum(c)) return 0;
+
+    Serial.println("Usuario decode: $" + param + "$");
+    
+    bufferUser=param;    
+    return 1;
+}
+bool server::verificarCambio()
+{
+    if(bufferUser==data->usuario && bufferClave==data->clave)
+    {
+        data->usuario=bufferUser; 
+        data->clave=bufferClave;
+        bufferUser="";
+        bufferClave="";
+    }
+    else return 0;
+    return 1;
 }

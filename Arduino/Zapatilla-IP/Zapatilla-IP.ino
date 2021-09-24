@@ -31,7 +31,7 @@ DHT _dht(pin.pinDHT , DHT22);
 tomacorrientes _tomas(data, pin);
 pulsadores _pulsadores(pin);
 pantallaOLED _pantalla(data);
-server _server(data, ptrGuardarSD);
+server _server(data);
 RunningStatistics _zmpt;
 RunningStatistics _ACS[N];
 IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea de fábrica
@@ -84,8 +84,7 @@ void setup()
     #ifdef DEBUGMAC
     for(int i : data.mac) Serial.println(i, 16);
     #endif
-    
-    server _aux(data, ptrGuardarSD);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
+    server _aux(data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado(80)
     _server.setup(); 
     data.actIpString();
@@ -381,6 +380,7 @@ void crearSDdefecto()
 
 void funAnalog()
 {
+    /*
     _zmpt.setInitialValue ( 0, 0 );
     for(int j=0; j<1; j++)
     {
@@ -400,6 +400,7 @@ void funAnalog()
 
         delay ( 1 );
     }
+    */
 }
 
 void funServer()
@@ -418,7 +419,7 @@ void funServer()
             _server.load();
             break;
         case 4:
-            server _aux(data, ptrGuardarSD); 
+            server _aux(data); 
             _server = _aux; 
             _server.load();
             break;
