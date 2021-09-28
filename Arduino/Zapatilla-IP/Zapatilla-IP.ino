@@ -7,10 +7,6 @@
 #include <avr/wdt.h>
 
 #define N 5
-//#define DEBUGSD
-//#define DEBUGMAC
-//#define DEBUGDHCP
-//#define DEBUGPET
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
@@ -52,11 +48,10 @@ unsigned long a = 0; //Bodge debug
 
 void setup() 
 {         
+    #ifdef DEBUGSD || DEBUGMAC || DEBUGDHCP || DEBUGPET || DEBUGPUL || DEBUGANALOG
     Serial.begin(BAUD2);
+    #endif
     data.ipDef = ipStored;
-    
-    //Timer1.initialize(10000);
-    //Timer1.attachInterrupt(funAnalog);
 
     SD.begin(4);
     SD.end();
@@ -109,7 +104,6 @@ void setup()
 
     _pantalla.pantallaPrincipal();
 }
-
 void loop() 
 {
     if(flagReset) reset();
@@ -119,7 +113,6 @@ void loop()
     funPantalla();
     funServer();
 }
-
 void funDHT()
 {
   //Comprueba el tiempo entre cada muestra, las actualiza cada 2 segundos y luego comprueba si la temperatura está en los rangos de tempMax y tempMin.
@@ -133,7 +126,6 @@ void funDHT()
     if(data.temp<data.tempMin && data.estTomas[4] == 1) _tomas.invertir(4);
   }
 }
-
 void funPul()
 {   
     for(int i=0; i<N; i++) 
@@ -190,7 +182,6 @@ void funPul()
         }
     }
 }
-
 void funPantalla()
 {
     /*
@@ -222,7 +213,6 @@ void funPantalla()
             break;
     }
 }
-
 void reset()
 {
     if(flagErrorSD == 0) crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
@@ -231,7 +221,6 @@ void reset()
 
     while(1);
 }
-
 void guardarSD()
 {
     if(flagErrorSD==0)
@@ -269,7 +258,6 @@ void guardarSD()
         config.close();
     }  
 }
-
 void cargarSD()
 {   
     if(SD.exists("config.txt"))
@@ -352,7 +340,6 @@ void cargarSD()
         crearSDdefecto(); //Si no se tiene un archivo se crea uno por defecto con todos los valores de la flash
     }
 }
-
 void crearSDdefecto()
 {
     #ifdef DEBUGSD
@@ -377,12 +364,9 @@ void crearSDdefecto()
     serializeJsonPretty(configJson, config);
     config.close();
 }
-
 void funAnalog()
 {
-    /*
-    _zmpt.setInitialValue ( 0, 0 );
-    for(int j=0; j<1; j++)
+    for(int j=0; j<10; j++)
     {
         for(int i=0; i<N; i++) _ACS[i].input(analogRead(pin.ACS[i])); 
         _zmpt.input(analogRead(pin.pinZmpt));
@@ -400,31 +384,14 @@ void funAnalog()
 
         delay ( 1 );
     }
-    */
 }
-
 void funServer()
 {
     int retorno = _server.rutina();
-    switch(retorno)
+    if(retorno!=-2)
     {
-        case 1:
-            _pantalla.resetBuf();
-            break;
-        case 2:
-            for(int i=0; i<5; i++) _tomas.conm(i, data.estTomas[i]);
-            break;
-        case 3:
-            delay(10);
-            _server.load();
-            break;
-        case 4:
-            server _aux(data); 
-            _server = _aux; 
-            _server.load();
-            break;
+        Serial.print("Retorno rutina server: ");
+        Serial.println(retorno);
     }
-    //if(retorno > 0) guardarSD();
 }
-
 void intReset(){flagReset = 1;}

@@ -53,11 +53,13 @@ class server: EthernetServer
         void lectura();
         void conversion();
         void checkLogin();
-        void ejecutarCmd();
+        int8_t ejecutarCmd();
         void devolucion();
 
         bool cambioMac();
         bool cambioTemp(bool flag);
+        bool cambioTempMax();
+        bool cambioTempMin();
         bool cambioTomas();
         bool cambioIp();
         bool cambioDhcp();
@@ -76,6 +78,21 @@ class server: EthernetServer
         String user, clave, cmd, param;
 
         String bufferClave, bufferUser;
+
+        const char *str[10] = 
+        { 
+            "mac", "tempmax", "tempmin", 
+            "tomas", "ipdef", "dhcp", 
+            "puerto", "usuario", "clave",
+            "verificar" 
+        };
+        bool (server::*fun[10]) () = 
+        { 
+            &server::cambioMac, &server::cambioTempMax, &server::cambioTempMin, 
+            &server::cambioTomas, &server::cambioIp, &server::cambioDhcp, 
+            &server::cambioPuerto, &server::cambioUser, &server::cambioClave, 
+            &server::verificarCambio 
+        };
 };
 
 

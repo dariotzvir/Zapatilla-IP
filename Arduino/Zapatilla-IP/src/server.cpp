@@ -3,7 +3,7 @@
 #include <SD.h>
 #include <utility/w5100.h>
 
-#define isBool(c)(c=='48' || c=='49')
+#define isBool(c)(c=='0' || c=='1')
 #define isInteger(c)(c >= '0' && c <= '9') 
 #define isAlfaNum(c)((c >= '0' && c <= '9') ||(c >= 'A' && c <= 'Z') ||(c >= 'a' && c <= 'z'))
 #define isHexadecimalDigit(c)((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))
@@ -19,7 +19,6 @@ server::server(DATA &data): EthernetServer(data.puerto)
 void server::setup()
 {
     Ethernet.begin(data->mac, data->ipDef);
-    //if(Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() != LinkON) errorEthernet = 1;
 
     load();
 
@@ -44,14 +43,11 @@ void server::load()
             data->dhcp = 0;
         }
     }
-
-    //contErrorDHCP = 0;
-    //millisDHCP = millis();
 }
 
 int8_t server::rutina()
 {
-    retornoRutina = -1;
+    int estadoPeticion = -2; //Si retorna -2 es porque no hubo un log de un usuario
     
     //if(data->dhcp) checkDHCP();
 
@@ -60,6 +56,7 @@ int8_t server::rutina()
 
     if(cmdCliente)
     {
+        estadoPeticion=-1; //Si retorna -1 es porque se conectaron pero no tiraron ningun comando
         req="";
         message="";
         errorParse=0;
@@ -69,12 +66,15 @@ int8_t server::rutina()
         #ifdef DEBUGPET
         Serial.print("\nConectado\n");
         #endif
-        retornoRutina=0;
 
         lectura();  
         conversion();
         if(ruta!=ERROR && ruta!=HOME) checkLogin();
-        if(ruta==CMD && !errorParse) ejecutarCmd();
+        if(ruta==CMD && !errorParse) 
+        {
+            estadoPeticion=ejecutarCmd();//Si retorna entre 1 y 10 se tirò un comando y si retorna 0 era un comando erroneo
+            errorCmd=(estadoPeticion==-1 ? 1 : 0);
+        }
         devolucion();
 
         delay(1);
@@ -82,7 +82,7 @@ int8_t server::rutina()
     }
 
     //if(retornoRutina > 0)(*guardarSD)();
-    return retornoRutina;   
+    return estadoPeticion;   
 }
 
 void server::lectura()
@@ -99,8 +99,10 @@ void server::lectura()
         }
         req.remove(req.length()-1);
 
+        #ifdef DEBUGPET
         Serial.print("Request: ");
         Serial.println(req);
+        #endif
 
         if(req[0]!='G')
         {
@@ -111,8 +113,11 @@ void server::lectura()
             }
             int index=resto.indexOf("\r\n\r\n");
             message=resto.substring(index+4,-1);
+
+            #ifdef DEBUGPET
             Serial.print("Message: $");
             Serial.println(message);
+            #endif
 
             tipo=POST;
             break;
@@ -136,13 +141,15 @@ void server::conversion()
     if(tipo==GET && ruteStr.length() > 1) 
     {
         int fin=ruteStr.indexOf('?');
-        if(fin!=-1) ruteStr.remove(fin, -1);
+        if(fin!=-1) ruteStr.remove(fin, ruteStr.length());
         else ruta=ERROR;
     }
 
+    #ifdef DEBUGPET
     Serial.print("Ruta: $");
     Serial.print(ruteStr);
     Serial.println("$");
+    #endif
 
     if(ruta!=ERROR)
     {
@@ -156,30 +163,33 @@ void server::conversion()
         if(tipo==GET) errorParse=!parseGET();
         if(tipo==POST) errorParse=!parsePOST();
     }
-}
 
+    #ifdef DEBUGPET
+    Serial.print("Ruta: $");
+    Serial.print(ruta);
+    Serial.println("$");
+    #endif
+
+}
 void server::checkLogin()
 {
     if(clave!=data->clave) errorLogin=1;
     if(user!=data->usuario) errorLogin=1;
 }
-
-void server::ejecutarCmd()
+int8_t server::ejecutarCmd()
 {
     cmd.toLowerCase();
+    int i=0;
 
     errorParam=0;
-
-    if(cmd=="mac") errorParam=!cambioMac();
-    else if(cmd=="tempmax") errorParam=!cambioTemp(0);
-    else if(cmd=="tempmin") errorParam=!cambioTemp(1);
-    else if(cmd=="tomas") errorParam=!cambioTomas();
-    else if(cmd=="ipdef") errorParam=!cambioIp();
-    else if(cmd=="dhcp") errorParam=!cambioDhcp();
-    else if(cmd=="puerto") errorParam=!cambioPuerto();
-    else if(cmd=="usuario" || cmd=="user") errorParam=!cambioUser();
-    else if(cmd=="clave") errorParam=!cambioClave();
-    else if(cmd=="verificar") errorParam=!verificarCambio();
+    
+    for(i=0; i<10; i++) 
+        if(cmd==str[i]) 
+        {
+            errorParam=!(this->*fun [i])();
+            break;
+        }
+    return ( !errorParam && i!=10 ? i : -1);
 }
 
 void server::devolucion()
@@ -191,11 +201,19 @@ void server::devolucion()
     
     if(ruta==HOME) cmdCliente.println("Zapatilla IP OK");
     else if(ruta==ERROR) cmdCliente.println("Ruta incorrecta");
+
     else if(errorLogin) cmdCliente.println("Login incorrecto");
     else if(errorParse) cmdCliente.println("Formato de peticion incorrecto");
+    else if(errorCmd) cmdCliente.println("Comando erroneo");
     else if(errorParam) cmdCliente.println("Formato de parametro incorrecto");
+
     else if(ruta==LEC) cmdCliente.println(retornoLecturas());
-    else if(ruta==CMD) cmdCliente.println( (errorCmd ? "Comando erroneo" : "Comando ejecutado") );
+    else if(ruta==CMD) cmdCliente.println("Comando ejecutado");
+
+    errorLogin=0;
+    errorParam=0;
+    errorParse=0;
+    errorCmd=0;
 }
 bool server::parseGET()
 {
@@ -236,19 +254,27 @@ bool server::parseStr(String str)
 
         cmd=str.substring(finClave+1, finCmd);
         param=str.substring(finCmd+1);
+
+        #ifdef DEBUGPET
         Serial.println("***COMANDO***");
+        #endif
     }
     else
     {
         cmd=str.substring(finClave+1);
+
+        #ifdef DEBUGPET
         Serial.println("***LECTURA***");
+        #endif
     } 
 
+    #ifdef DEBUGPET
     Serial.println("Str: $" + str + "$");
     Serial.println("User: $" + user + "$");
     Serial.println("Clave: $" + clave + "$");
     Serial.println("Cmd: $" + cmd + "$");
     Serial.println("Param: $" + param + "$");
+    #endif
 
     return 1;
 }
@@ -309,7 +335,9 @@ bool server::cambioMac()
     byte macAux[6], buffer=0;
     for(auto i : macAux) i=0;
 
+    #ifdef DEBUGPET
     Serial.print("Buffer MAC decode: ");
+    #endif
 
     for(int i=0; i<n && contEsp<6; i++)
     {
@@ -318,24 +346,30 @@ bool server::cambioMac()
         if(!isHexadecimalDigit(c) && c!='+') return 0;
         if(c=='+')
         {
+            #ifdef DEBUGPET
             Serial.print('$');
             Serial.print(buffer);
             Serial.print('$');
+            #endif
+
             macAux[contEsp++]=buffer;
             buffer=0;
         }
-        if(c>='0' && c<='9') buffer=buffer*16 + i-'0';
-        else if(c>='A' && c<='F') buffer=buffer*16 + 10 + i-'A';
+        if(c>='0' && c<='9') buffer=buffer*16 + c-'0';
+        else if(c>='A' && c<='F') buffer=buffer*16 + 10 + c-'A';
     }
 
+    #ifdef DEBUGPET
     Serial.println();
+    #endif
 
     macAux[contEsp++]=buffer;
     if(contEsp!=6) return 0;
-    for(int i=0; i<6; i++) data->mac[i]=macAux[i];
 
+    for(int i=0; i<6; i++) data->mac[i]=macAux[i];
     data->actMacString();
 
+    #ifdef DEBUGPET
     Serial.print ("Mac decode: ");
     for(int i=0; i<6; i++) 
     {
@@ -344,21 +378,45 @@ bool server::cambioMac()
         Serial.print('$');
     }
     Serial.println();
+    Serial.println(data->macString);
+    Serial.println();
+    #endif
 
     return 1;
 }
+bool server::cambioTempMax() {return cambioTemp (1);}
+bool server::cambioTempMin() {return cambioTemp (0);}
 bool server::cambioTemp(bool flag)
 {
     int n=param.length();
-    for(int i=0; i<n; i++) if(isInteger(param[i])) return 0;
+    bool negative=0;
+    if(param[0] == '-') 
+    {
+        negative=1;
+        param = param.substring (1);
+        Serial.println (param);
+    }
+    for(int i=0; i<n; i++) if(!isInteger(param[i])) return 0;
 
     int aux=param.toInt();
+    if(negative) aux+=-1;
+
+    #ifdef DEBUGPET
     Serial.print("Temp decode: $");
     Serial.print(aux);
-    Serial.println('$');
+    Serial.println('$');    
+    #endif
 
-    if(flag && aux<=125 && aux>=data->tempMin) data->tempMax=aux;
-    if(!flag && aux<=-40 && aux<=data->tempMax) data->tempMin=aux;
+    if (flag)
+    {
+        if(aux<=125 && aux>=data->tempMin) data->tempMax=aux;
+        return 0;
+    }
+    else
+    {
+        if(aux<=-40 && aux<=data->tempMax) data->tempMin=aux;
+        return 0;
+    }
 
     return 1;
 }
@@ -369,10 +427,12 @@ bool server::cambioTomas()
     int toma=fromCharToInt(param[0])-1;
     int accion=fromCharToInt(param[2]);
 
+    #ifdef DEBUGPET
     Serial.println("Toma decode: $" + String(toma) + "$");
     Serial.println("Accion decode: $" + String(accion) + "$");
+    #endif
 
-    if(isBool (accion) || toma >=4 || toma<=0) errorParam=1;
+    if( !(accion==1 || accion==0) || toma>4 || toma<0) return 0;
     else data->estTomas[toma]=accion;
     return 1;
 }
@@ -381,7 +441,9 @@ bool server::cambioIp()
     IPAddress aux;
     if(!aux.fromString(param)) return 0;
 
-    Serial.println("IP decode: $" + String(aux) + "$");
+    #ifdef DEBUGPET
+    Serial.println("IP decode: $" + String(aux[0]) + "." + String(aux[1]) + "." + String(aux[2]) + "." + String(aux[3]) + "$");
+    #endif
 
     data->ipDef=aux;
     data->actIpString();
@@ -395,7 +457,9 @@ bool server::cambioDhcp()
     if(n!=1) return 0;
     for(int i=0; i<n; i++) if(!isBool(param[i])) return 0;
 
+    #ifdef DEBUGPET
     Serial.println("DHCPdecode: $" + param + "$");
+    #endif
 
     data->dhcp=param.toInt ();
     return 1;
@@ -405,7 +469,9 @@ bool server::cambioPuerto()
     int n=param.length();
     for(int i=0; i<n; i++) if(!isInteger(param[i])) return 0;
 
+    #ifdef DEBUGPET
     Serial.println("Puerto decode: $" + param + "$");
+    #endif
 
     data->puerto=param.toInt ();
     return 1;
@@ -416,7 +482,9 @@ bool server::cambioClave()
     if(n<5 || n>15) return 0;
     for(char c : param) if(!isAlfaNum(c)) return 0;
 
+    #ifdef DEBUGPET
     Serial.println("Clave decode: $" + param + "$");
+    #endif 
 
     bufferClave=param;    
     return 1;
@@ -427,14 +495,38 @@ bool server::cambioUser()
     if(n<5 || n>15) return 0;
     for(char c : param) if(!isAlfaNum(c)) return 0;
 
+    #ifdef DEBUGPET
     Serial.println("Usuario decode: $" + param + "$");
-    
+    #endif
+
     bufferUser=param;    
     return 1;
 }
 bool server::verificarCambio()
 {
-    if(bufferUser==data->usuario && bufferClave==data->clave)
+    int finUser=param.indexOf('+');
+    if(finUser==-1) return 0;
+
+    String auxUser=param.substring(0, finUser);
+    String auxClave=param.substring(finUser+1, param.length());
+
+    #ifdef DEBUGPET
+    Serial.println("AuxUser: $" + auxUser + "$");
+    Serial.println("AuxClave: $" + auxClave + "$");
+    #endif
+
+    int n=auxUser.length();
+    if(n<5 || n>15) return 0;
+    for(char c : auxUser) if(!isAlfaNum(c)) return 0;
+
+    n=auxClave.length();
+    if(n<5 || n>15) return 0;
+    for(char c : auxClave) if(!isAlfaNum(c)) return 0;
+
+    if(bufferUser=="")bufferUser=data->usuario;
+    if(bufferClave=="")bufferClave=data->clave;
+
+    if(bufferUser==auxUser && bufferClave==auxClave)
     {
         data->usuario=bufferUser; 
         data->clave=bufferClave;
