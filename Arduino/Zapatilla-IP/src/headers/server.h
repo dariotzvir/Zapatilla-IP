@@ -33,6 +33,7 @@ enum RUTAS
 };
 enum PET
 {
+    NOPET=-1,
     GET,
     POST
 };
@@ -50,9 +51,9 @@ class server: EthernetServer
         DATA *data;
         int8_t retornoRutina = 0;   
         
-        void lectura();
-        void conversion();
-        void checkLogin();
+        int8_t lectura();
+        int8_t parsePet();
+        bool checkLogin();
         int8_t ejecutarCmd();
         void devolucion();
 
@@ -72,8 +73,8 @@ class server: EthernetServer
         bool parseGET(), parsePOST(), parseStr(String str);
 
         bool errorParse=0, errorCmd=0, errorLogin=0, errorParam=0;
-        uint8_t tipo=0;//Tipo de peticion HTTP 0:GET 1:POST
-        uint8_t ruta=0;//Rutas de las peticiones HTTP 0:/ 1:/cmd 2:/lec -1:error
+        int8_t tipoPet=-1;//Tipo de peticion HTTP 0:GET 1:POST
+        int8_t ruta=0;//Rutas de las peticiones HTTP 0:/ 1:/cmd 2:/lec -1:error
         String req, message;
         String user, clave, cmd, param;
 

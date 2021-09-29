@@ -67,16 +67,20 @@ int8_t server::rutina()
         Serial.print("\nConectado\n");
         #endif
 
-        lectura();  
-        conversion();
-        if(ruta!=ERROR && ruta!=HOME) checkLogin();
-        if(ruta==CMD && !errorParse) 
+        tipoPet=lectura();  
+        if(tipoPet!=NOPET)
         {
-            estadoPeticion=ejecutarCmd();//Si retorna entre 1 y 10 se tirò un comando y si retorna 0 era un comando erroneo
-            errorCmd=(estadoPeticion==-1 ? 1 : 0);
-        }
-        devolucion();
+            ruta=parsePet();
 
+            if(ruta!=ERROR) errorLogin=!checkLogin();
+            if(ruta==CMD && !errorLogin) 
+            {
+                int8_t retorno=ejecutarCmd();
+                if(retorno != -1 && !errorParam) estadoPeticion=retorno;
+            }
+
+            devolucion();
+        }
         delay(1);
         cmdCliente.stop();
     }
@@ -84,10 +88,8 @@ int8_t server::rutina()
     //if(retornoRutina > 0)(*guardarSD)();
     return estadoPeticion;   
 }
-
-void server::lectura()
+int8_t server::lectura()
 {
-    tipo=GET;
     while(cmdCliente.connected())
     {
         String resto="";
@@ -119,17 +121,14 @@ void server::lectura()
             Serial.println(message);
             #endif
 
-            tipo=POST;
-            break;
+            return POST;
         }
-        else break;
+        else return GET;
     }
+    return NOPET;
 }
-
-void server::conversion()
-{        
-    ruta=HOME;
-    
+int8_t server::parsePet()
+{      
     int ini=req.indexOf('/');
     int fin=req.indexOf(' ', ini+1);
 
@@ -137,12 +136,25 @@ void server::conversion()
     //GET /lec     POST /lec
     //GET / HT     POST / HT
     String ruteStr=req.substring(ini, fin);
+    ruteStr.toLowerCase();
 
-    if(tipo==GET && ruteStr.length() > 1) 
+    #ifdef DEBUGPET
+    Serial.print("Ruta: $");
+    Serial.print(ruteStr);
+    Serial.println("$");
+    #endif
+
+    if(ruteStr.length()==1 && ruteStr[0]=='/') return HOME;
+    if(tipoPet==GET) 
     {
-        int fin=ruteStr.indexOf('?');
-        if(fin!=-1) ruteStr.remove(fin, ruteStr.length());
-        else ruta=ERROR;
+        int finGET=ruteStr.indexOf('?');
+        #ifdef DEBUGPET
+        Serial.print("finGET: $");
+        Serial.print(finGET);
+        Serial.println("$");
+        #endif
+        if(finGET!=-1) ruteStr.remove(finGET);
+        else return ERROR;
     }
 
     #ifdef DEBUGPET
@@ -151,17 +163,12 @@ void server::conversion()
     Serial.println("$");
     #endif
 
-    if(ruta!=ERROR)
-    {
-        if(ruteStr=="/") ruta=HOME;
-        else if(ruteStr=="/cmd" || ruteStr=="/CMD") ruta=CMD;
-        else if(ruteStr=="/lec" || ruteStr=="/LEC") ruta=LEC;
-        else ruta=ERROR;
-    }
+    if(ruteStr=="/cmd") ruta=CMD;
+    else if(ruteStr=="/lec") ruta=LEC;
     if(ruta==CMD || ruta==LEC)
     {
-        if(tipo==GET) errorParse=!parseGET();
-        if(tipo==POST) errorParse=!parsePOST();
+        if(tipoPet==GET) errorParse=!parseGET();
+        if(tipoPet==POST) errorParse=!parsePOST();
     }
 
     #ifdef DEBUGPET
@@ -170,16 +177,18 @@ void server::conversion()
     Serial.println("$");
     #endif
 
+    return ruta;
 }
-void server::checkLogin()
+bool server::checkLogin()
 {
-    if(clave!=data->clave) errorLogin=1;
-    if(user!=data->usuario) errorLogin=1;
+    if(clave!=data->clave) return 0;
+    if(user!=data->usuario) return 0;
+    return 1;
 }
 int8_t server::ejecutarCmd()
 {
     cmd.toLowerCase();
-    int i=0;
+    int8_t i=0, index=-1;
 
     errorParam=0;
     
@@ -187,9 +196,18 @@ int8_t server::ejecutarCmd()
         if(cmd==str[i]) 
         {
             errorParam=!(this->*fun [i])();
+            index=i;
             break;
         }
-    return ( !errorParam && i!=10 ? i : -1);
+    
+
+    #ifdef DEBUGPET
+    Serial.print("index cmd: $");
+    Serial.print(index);
+    Serial.println('$');    
+    #endif
+
+    return index;
 }
 
 void server::devolucion()
@@ -203,8 +221,9 @@ void server::devolucion()
     else if(ruta==ERROR) cmdCliente.println("Ruta incorrecta");
 
     else if(errorLogin) cmdCliente.println("Login incorrecto");
-    else if(errorParse) cmdCliente.println("Formato de peticion incorrecto");
     else if(errorCmd) cmdCliente.println("Comando erroneo");
+
+    else if(errorParse) cmdCliente.println("Formato de peticion incorrecto");
     else if(errorParam) cmdCliente.println("Formato de parametro incorrecto");
 
     else if(ruta==LEC) cmdCliente.println(retornoLecturas());
@@ -394,12 +413,12 @@ bool server::cambioTemp(bool flag)
     {
         negative=1;
         param = param.substring (1);
-        Serial.println (param);
+        n--;
     }
-    for(int i=0; i<n; i++) if(!isInteger(param[i])) return 0;
+    else for(int i=0; i<n; i++) if(!isInteger(param[i])) return 0;
 
     int aux=param.toInt();
-    if(negative) aux+=-1;
+    if(negative) aux*=-1;
 
     #ifdef DEBUGPET
     Serial.print("Temp decode: $");
@@ -409,16 +428,23 @@ bool server::cambioTemp(bool flag)
 
     if (flag)
     {
-        if(aux<=125 && aux>=data->tempMin) data->tempMax=aux;
-        return 0;
+        if(aux<=125 && aux>=data->tempMin) 
+        {
+            data->tempMax=aux;
+            return 1;
+        }
+        else return 0;
     }
     else
     {
-        if(aux<=-40 && aux<=data->tempMax) data->tempMin=aux;
+        if(aux>=-40 && aux<=data->tempMax) 
+        {
+            data->tempMin=aux;
+            return 1;
+        }
         return 0;
     }
-
-    return 1;
+    return 0;
 }
 bool server::cambioTomas()
 {

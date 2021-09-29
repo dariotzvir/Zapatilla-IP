@@ -223,6 +223,7 @@ void reset()
 }
 void guardarSD()
 {
+    Serial.println("asodoasbdoiasbdoiabsodibasobdaoisbdoiasbdoaisbdoiasbdoiasbdoasibdoiasdbasidbasd");
     if(flagErrorSD==0)
     {
         #ifdef DEBUGSD
@@ -388,10 +389,55 @@ void funAnalog()
 void funServer()
 {
     int retorno = _server.rutina();
-    if(retorno!=-2)
+    if(retorno>=0)
     {
         Serial.print("Retorno rutina server: ");
         Serial.println(retorno);
+        if(retorno==9) guardarSD();
+        switch(retorno)
+        {
+            case 0:
+                guardarSD();
+                break;
+            case 1:
+                guardarSD();
+                break;
+            case 2:
+                guardarSD();
+                break;
+            case 3:
+                for(int i=0; i<N; i++) _tomas.conm (i, data.estTomas[i]);
+                guardarSD();
+                break;
+            case 4:
+                _pantalla.pantallaBoot();
+                if(!data.dhcp) _server.load();
+                guardarSD();
+                funPantalla();
+                break;
+            case 5:
+                _pantalla.pantallaBoot();
+                _server.load();
+                guardarSD();
+                funPantalla();
+                break;
+            case 6:
+                _pantalla.pantallaBoot();
+                server _aux(data); 
+                _server = _aux; 
+                _server.load();
+                guardarSD();
+                funPantalla();    
+                break;
+            case 7:
+                break;
+            case 8:
+                break;
+            case 9://Està embrujado
+                guardarSD();
+                break;    
+        }
+
     }
 }
 void intReset(){flagReset = 1;}
