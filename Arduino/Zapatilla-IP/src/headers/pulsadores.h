@@ -15,8 +15,8 @@ class pulsadores
 {
     public: 
         pulsadores(PINES &);
-        bool checkMenu(int);
-        bool checkTomas(int);
+        bool checkMenu(uint8_t p);
+        bool checkTomas(uint8_t p);
         void begin();
 
         bool flagTimer = 0;
@@ -25,7 +25,7 @@ class pulsadores
         bool flagTomas[5] = {0};
         bool flagMenu[5] = {0};   //T1, T2, T3, T4, T5, ON, ENT, DER, IZQ
         unsigned long millisAcel = 0;
-        int periodo = PERIODODEF;
+        uint8_t periodo = PERIODODEF;
         PINES *pin;
 };
 

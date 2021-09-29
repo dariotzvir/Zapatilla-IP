@@ -7,10 +7,6 @@
 #include <avr/wdt.h>
 
 #define N 5
-//#define DEBUGSD
-//#define DEBUGMAC
-//#define DEBUGDHCP
-//#define DEBUGPET
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
@@ -31,7 +27,7 @@ DHT _dht(pin.pinDHT , DHT22);
 tomacorrientes _tomas(data, pin);
 pulsadores _pulsadores(pin);
 pantallaOLED _pantalla(data);
-server _server(data, ptrGuardarSD);
+server _server(data);
 RunningStatistics _zmpt;
 RunningStatistics _ACS[N];
 IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea de fábrica
@@ -52,10 +48,10 @@ unsigned long a = 0; //Bodge debug
 
 void setup() 
 {         
+    #ifdef DEBUGSD || DEBUGMAC || DEBUGDHCP || DEBUGPET || DEBUGPUL || DEBUGANALOG
     Serial.begin(BAUD2);
-
-    //Timer1.initialize(10000);
-    //Timer1.attachInterrupt(funAnalog);
+    #endif
+    data.ipDef = ipStored;
 
     SD.begin(4);
     SD.end();
@@ -76,7 +72,6 @@ void setup()
     
     _pantalla.setup(); 
     _pantalla.pantallaBoot();
-    data.ipDef = ipStored;
 
     pinMode(pin.pinRst, INPUT);
     attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, RISING);
@@ -84,8 +79,7 @@ void setup()
     #ifdef DEBUGMAC
     for(int i : data.mac) Serial.println(i, 16);
     #endif
-    
-    server _aux(data, ptrGuardarSD);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
+    server _aux(data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado(80)
     _server.setup(); 
     data.actIpString();
@@ -110,7 +104,6 @@ void setup()
 
     _pantalla.pantallaPrincipal();
 }
-
 void loop() 
 {
     if(flagReset) reset();
@@ -120,7 +113,6 @@ void loop()
     funPantalla();
     funServer();
 }
-
 void funDHT()
 {
   //Comprueba el tiempo entre cada muestra, las actualiza cada 2 segundos y luego comprueba si la temperatura está en los rangos de tempMax y tempMin.
@@ -134,7 +126,6 @@ void funDHT()
     if(data.temp<data.tempMin && data.estTomas[4] == 1) _tomas.invertir(4);
   }
 }
-
 void funPul()
 {   
     for(int i=0; i<N; i++) 
@@ -191,7 +182,6 @@ void funPul()
         }
     }
 }
-
 void funPantalla()
 {
     /*
@@ -223,7 +213,6 @@ void funPantalla()
             break;
     }
 }
-
 void reset()
 {
     if(flagErrorSD == 0) crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
@@ -232,9 +221,9 @@ void reset()
 
     while(1);
 }
-
 void guardarSD()
 {
+    Serial.println("asodoasbdoiasbdoiabsodibasobdaoisbdoiasbdoaisbdoiasbdoiasbdoasibdoiasdbasidbasd");
     if(flagErrorSD==0)
     {
         #ifdef DEBUGSD
@@ -270,7 +259,6 @@ void guardarSD()
         config.close();
     }  
 }
-
 void cargarSD()
 {   
     if(SD.exists("config.txt"))
@@ -353,7 +341,6 @@ void cargarSD()
         crearSDdefecto(); //Si no se tiene un archivo se crea uno por defecto con todos los valores de la flash
     }
 }
-
 void crearSDdefecto()
 {
     #ifdef DEBUGSD
@@ -378,11 +365,9 @@ void crearSDdefecto()
     serializeJsonPretty(configJson, config);
     config.close();
 }
-
 void funAnalog()
 {
-    _zmpt.setInitialValue ( 0, 0 );
-    for(int j=0; j<5; j++)
+    for(int j=0; j<10; j++)
     {
         for(int i=0; i<N; i++) _ACS[i].input(analogRead(pin.ACS[i])); 
         _zmpt.input(analogRead(pin.pinZmpt));
@@ -401,29 +386,58 @@ void funAnalog()
         delay ( 1 );
     }
 }
-
 void funServer()
 {
     int retorno = _server.rutina();
-    switch(retorno)
+    if(retorno>=0)
     {
-        case 1:
-            _pantalla.resetBuf();
-            break;
-        case 2:
-            for(int i=0; i<5; i++) _tomas.conm(i, data.estTomas[i]);
-            break;
-        case 3:
-            delay(10);
-            _server.load();
-            break;
-        case 4:
-            server _aux(data, ptrGuardarSD); 
-            _server = _aux; 
-            _server.load();
-            break;
-    }
-    //if(retorno > 0) guardarSD();
-}
+        Serial.print("Retorno rutina server: ");
+        Serial.println(retorno);
+        if(retorno==9) guardarSD();
+        switch(retorno)
+        {
+            case 0:
+                guardarSD();
+                break;
+            case 1:
+                guardarSD();
+                break;
+            case 2:
+                guardarSD();
+                break;
+            case 3:
+                for(int i=0; i<N; i++) _tomas.conm (i, data.estTomas[i]);
+                guardarSD();
+                break;
+            case 4:
+                _pantalla.pantallaBoot();
+                if(!data.dhcp) _server.load();
+                guardarSD();
+                funPantalla();
+                break;
+            case 5:
+                _pantalla.pantallaBoot();
+                _server.load();
+                guardarSD();
+                funPantalla();
+                break;
+            case 6:
+                _pantalla.pantallaBoot();
+                server _aux(data); 
+                _server = _aux; 
+                _server.load();
+                guardarSD();
+                funPantalla();    
+                break;
+            case 7:
+                break;
+            case 8:
+                break;
+            case 9://Està embrujado
+                guardarSD();
+                break;    
+        }
 
+    }
+}
 void intReset(){flagReset = 1;}

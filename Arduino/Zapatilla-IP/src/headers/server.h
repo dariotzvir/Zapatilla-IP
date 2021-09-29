@@ -23,38 +23,77 @@
 #define GUARDADO "Guardado"
 #define FALLOSDHCP 10
 #define PERIODODHCP long(9000000)
-#define GET 0
-#define POST 1
+
+enum RUTAS
+{
+    HOME,
+    CMD,
+    LEC,
+    ERROR=-1
+};
+enum PET
+{
+    NOPET=-1,
+    GET,
+    POST
+};
 
 class server: EthernetServer
 {
     public:
-        server(DATA &data, void (*guardarSD)());
+        server(DATA &data);
+
         void setup();
-        int rutina();
         void load();
+
+        int8_t rutina();
     private:
         DATA *data;
-        void (*guardarSD)();
-        int retornoRutina = 0;                               
-        String peticion, header;
-        unsigned long millisDHCP = 0;
-        int contErrorDHCP = 0;
-        String bufferClave = "", bufferUser = "";
+        int8_t retornoRutina = 0;   
+        
+        int8_t lectura();
+        int8_t parsePet();
+        bool checkLogin();
+        int8_t ejecutarCmd();
+        void devolucion();
 
-        void retorno(bool);
-        void checkDHCP();
-        bool checkStr(int, const char *);
-        bool checkAlfaNum(char);
-        bool checkLogin(int);
+        bool cambioMac();
+        bool cambioTemp(bool flag);
+        bool cambioTempMax();
+        bool cambioTempMin();
+        bool cambioTomas();
+        bool cambioIp();
+        bool cambioDhcp();
+        bool cambioPuerto();
+        bool cambioUser();
+        bool cambioClave();
+        bool verificarCambio();
 
-        String comandoServerGET(int);
-        String lecturaServer(int);
-        String encodeIp(IPAddress &);
-        String encodeTomas(bool *, float *);
+        String retornoLecturas();
+        bool parseGET(), parsePOST(), parseStr(String str);
 
-        int leerTemp(String &, int);
-        bool comprobarTempBoundaries(String &, int, int);
+        bool errorParse=0, errorCmd=0, errorLogin=0, errorParam=0;
+        int8_t tipoPet=-1;//Tipo de peticion HTTP 0:GET 1:POST
+        int8_t ruta=0;//Rutas de las peticiones HTTP 0:/ 1:/cmd 2:/lec -1:error
+        String req, message;
+        String user, clave, cmd, param;
+
+        String bufferClave, bufferUser;
+
+        const char *str[10] = 
+        { 
+            "mac", "tempmax", "tempmin", 
+            "tomas", "ipdef", "dhcp", 
+            "puerto", "usuario", "clave",
+            "verificar" 
+        };
+        bool (server::*fun[10]) () = 
+        { 
+            &server::cambioMac, &server::cambioTempMax, &server::cambioTempMin, 
+            &server::cambioTomas, &server::cambioIp, &server::cambioDhcp, 
+            &server::cambioPuerto, &server::cambioUser, &server::cambioClave, 
+            &server::verificarCambio 
+        };
 };
 
 
