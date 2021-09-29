@@ -111,7 +111,7 @@ void loop()
     funPul();
     funAnalog();
     funPantalla();
-    funServer();
+    funserver();
 }
 void funDHT()
 {
@@ -386,7 +386,7 @@ void funAnalog()
         delay ( 1 );
     }
 }
-void funServer()
+void funserver()
 {
     int retorno = _server.rutina();
     if(retorno>=0)

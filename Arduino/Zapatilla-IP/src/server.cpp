@@ -49,7 +49,7 @@ int8_t server::rutina()
 {
     int estadoPeticion = -2; //Si retorna -2 es porque no hubo un log de un usuario
     
-    //if(data->dhcp) checkDHCP();
+    if(data->dhcp) checkDHCP();
 
     cmdCliente.flush();
     cmdCliente=available();
@@ -561,4 +561,25 @@ bool server::verificarCambio()
     }
     else return 0;
     return 1;
+}
+void server::checkDHCP ()
+{
+    /*
+    *   --0: el metoro hizo algo mal
+    *   --1: DHCP renovado con la misma IP
+    *   --2: Falló renovar la misma IP
+    *   --3: Renovó el DHCP pero con una IP diferente
+    *   --4: Falló de renovar el DHCP con una IP distinta
+    *      
+    *       Si cambia la IP en el proceso no es necesario cambiar ninguna cosa adicional ya que siempre
+    *   se accede desde Ethernet.localIP () cuando se quiere saber la IP que se usa y luego no se guarda
+    *   en ningún otro lado.
+    *       Solo se necesita reiniciar los contadores.
+    */
+    if (millis ()-millisDHCP>=PERIODODHCP) 
+    {
+        millisDHCP=millis ();
+        int retorno=Ethernet.maintain(); 
+        if (retorno==1 || retorno==3) load ();
+    }
 }

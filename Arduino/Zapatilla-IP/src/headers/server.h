@@ -57,6 +57,8 @@ class server: EthernetServer
         int8_t ejecutarCmd();
         void devolucion();
 
+        void checkDHCP();
+
         bool cambioMac();
         bool cambioTemp(bool flag);
         bool cambioTempMax();
@@ -94,6 +96,7 @@ class server: EthernetServer
             &server::cambioPuerto, &server::cambioUser, &server::cambioClave, 
             &server::verificarCambio 
         };
+        unsigned long millisDHCP=0;
 };
 
 
