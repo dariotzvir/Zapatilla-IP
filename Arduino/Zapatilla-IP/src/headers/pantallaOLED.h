@@ -12,10 +12,10 @@
 #define N 5
 #endif
 
-class pantallaOLED: public Adafruit_SSD1306
+class PantallaOLED: public Adafruit_SSD1306
 {
     public:
-        pantallaOLED(DATA &);
+        PantallaOLED(DATA &);
         void setup();
 
         void pantallaApagada();

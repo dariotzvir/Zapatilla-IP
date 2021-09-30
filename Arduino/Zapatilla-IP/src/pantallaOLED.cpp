@@ -1,4 +1,4 @@
-#include "headers/pantallaOLED.h"
+#include "headers/PantallaOLED.h"
 /**
  *   Acá solo tengo comentarios más generale y es que intentes hacer más funciones para
  * que se entienda más rápido lo que intentás hacer y sea menos imperativo, por ejemplo 
@@ -17,12 +17,12 @@
  */
 
 
-pantallaOLED::pantallaOLED(DATA &data):Adafruit_SSD1306(128, 64, &Wire, 4)
+PantallaOLED::PantallaOLED(DATA &data):Adafruit_SSD1306(128, 64, &Wire, 4)
 {
     this->data = &data;
 }
 
-void pantallaOLED::setup()
+void PantallaOLED::setup()
 {
     Wire.begin(); 
     begin(SSD1306_SWITCHCAPVCC, 0x3C); 
@@ -37,7 +37,7 @@ void pantallaOLED::setup()
     display(); 
 }
 
-void pantallaOLED::grillaPrin()
+void PantallaOLED::grillaPrin()
 {
     //Dibuja todas la tabla de la pantalla principal
     drawRect(0, 0, 127, 63, WHITE);       
@@ -51,7 +51,7 @@ void pantallaOLED::grillaPrin()
     drawFastVLine(105, 0, 31, WHITE);
 }
 
-void pantallaOLED::textoFijoPrin()
+void PantallaOLED::textoFijoPrin()
 {
     setTextSize(2); 
 
@@ -77,7 +77,7 @@ void pantallaOLED::textoFijoPrin()
     //Muestra temperatura humedad y tension lo siguiente
 }
 
-void pantallaOLED::grillaMenu()
+void PantallaOLED::grillaMenu()
 {
     setTextSize(1);
     drawRect(0, 0, 127, 63, WHITE);//Hace un rectángulo de 1px en el borde
@@ -92,7 +92,7 @@ void pantallaOLED::grillaMenu()
     setTextSize(2);
 }
 
-void pantallaOLED::pantallaPrincipal()
+void PantallaOLED::pantallaPrincipal()
 {
     clearDisplay();
     ssd1306_command(SSD1306_DISPLAYON);
@@ -181,7 +181,7 @@ void pantallaOLED::pantallaPrincipal()
     display();
 }
 
-void pantallaOLED::menu(IPAddress localHost, bool flagSD)
+void PantallaOLED::menu(IPAddress localHost, bool flagSD)
 {
     clearDisplay();
     ssd1306_command(SSD1306_DISPLAYON);
@@ -267,7 +267,7 @@ void pantallaOLED::menu(IPAddress localHost, bool flagSD)
     display();
 }
 
-void pantallaOLED::pantallaReset()
+void PantallaOLED::pantallaReset()
 {
     /*
         Dibuja la pantalla de reseteo en general pinta la pantalla en blaco, dibuja un rectangulo
@@ -301,7 +301,7 @@ void pantallaOLED::pantallaReset()
     display();
 }
 
-void pantallaOLED::pantallaBoot()
+void PantallaOLED::pantallaBoot()
 {
     /*
         Dibuja la pantalla de reseteo en general pinta la pantalla en blaco, dibuja un rectangulo
@@ -343,13 +343,13 @@ void pantallaOLED::pantallaBoot()
     setTextColor(WHITE);
 }
 
-void pantallaOLED::pantallaApagada()
+void PantallaOLED::pantallaApagada()
 {
     clearDisplay();
     ssd1306_command(SSD1306_DISPLAYOFF);
 }
 
-int pantallaOLED::logicaEnter()
+int PantallaOLED::logicaEnter()
 {
     int retorno = 0;
     if(pantallaSelec < TMIN) pantallaSelec = 2; //Si está en una pantalla que no sea de menú cambia a una que lo es
@@ -386,7 +386,7 @@ int pantallaOLED::logicaEnter()
     return retorno;
 }
 
-void pantallaOLED::logicaDer()
+void PantallaOLED::logicaDer()
 {
     if(pantallaSelec == PRINCIPAL || pantallaSelec == APAGADA) pantallaSelec = TMIN; //Si está en una pantalla que no sea de menú cambia a una que lo es
     if(flagSelec) //Si se está modificando una variable se aumenta la misma hasta su límite
@@ -403,7 +403,7 @@ void pantallaOLED::logicaDer()
     
 }
 
-void pantallaOLED::logicaIzq()
+void PantallaOLED::logicaIzq()
 {
     if(pantallaSelec == PRINCIPAL || pantallaSelec == APAGADA) pantallaSelec = TMIN; //Si está en una pantalla que no sea de menú cambia a una que lo es
     if(flagSelec) //Si se está modificando una variable se disminuye la misma hasta su límite
@@ -420,7 +420,7 @@ void pantallaOLED::logicaIzq()
     
 }
 
-void pantallaOLED::logicaOnOff()
+void PantallaOLED::logicaOnOff()
 {
     if(pantallaSelec != PRINCIPAL) pantallaSelec = PRINCIPAL; //Si está en una pantalla de menú o apagada lleva a la pantalla principal
     else if(pantallaSelec == PRINCIPAL) pantallaSelec = APAGADA; //Si está en la pantalla principal la apaga
@@ -430,7 +430,7 @@ void pantallaOLED::logicaOnOff()
     flagSelec = 0;
 }
 
-void pantallaOLED::resetBuf()
+void PantallaOLED::resetBuf()
 {
     bufferTempMax = data->tempMax;
     bufferTempMin = data->tempMin;

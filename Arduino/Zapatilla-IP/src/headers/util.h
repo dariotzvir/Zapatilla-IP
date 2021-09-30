@@ -16,7 +16,7 @@
 //#define DEBUGDHCP
 //#define DEBUGPET
 //#define DEBUGPUL
-//#define DEBUGANALOG
+#define DEBUGANALOG
 
 enum pantallas 
 {

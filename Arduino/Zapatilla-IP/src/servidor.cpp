@@ -1,4 +1,4 @@
-#include "headers/server.h"
+#include "headers/servidor.h"
 
 #include <SD.h>
 #include <utility/w5100.h>
@@ -11,12 +11,12 @@
 
 EthernetClient cmdCliente;
 
-server::server(DATA &data): EthernetServer(data.puerto)
+Servidor::Servidor(DATA &data): EthernetServer(data.puerto)
 {
     this->data = &data;
 }
 
-void server::setup()
+void Servidor::setup()
 {
     Ethernet.begin(data->mac, data->ipDef);
 
@@ -25,7 +25,7 @@ void server::setup()
     begin();
 }
 
-void server::load()
+void Servidor::load()
 {
     Ethernet.begin(data->mac, data->ipDef);
     
@@ -45,7 +45,7 @@ void server::load()
     }
 }
 
-int8_t server::rutina()
+int8_t Servidor::rutina()
 {
     int estadoPeticion = -2; //Si retorna -2 es porque no hubo un log de un usuario
     
@@ -88,7 +88,7 @@ int8_t server::rutina()
     //if(retornoRutina > 0)(*guardarSD)();
     return estadoPeticion;   
 }
-int8_t server::lectura()
+int8_t Servidor::lectura()
 {
     while(cmdCliente.connected())
     {
@@ -127,7 +127,7 @@ int8_t server::lectura()
     }
     return NOPET;
 }
-int8_t server::parsePet()
+int8_t Servidor::parsePet()
 {      
     int ini=req.indexOf('/');
     int fin=req.indexOf(' ', ini+1);
@@ -179,13 +179,13 @@ int8_t server::parsePet()
 
     return ruta;
 }
-bool server::checkLogin()
+bool Servidor::checkLogin()
 {
     if(clave!=data->clave) return 0;
     if(user!=data->usuario) return 0;
     return 1;
 }
-int8_t server::ejecutarCmd()
+int8_t Servidor::ejecutarCmd()
 {
     cmd.toLowerCase();
     int8_t i=0, index=-1;
@@ -210,7 +210,7 @@ int8_t server::ejecutarCmd()
     return index;
 }
 
-void server::devolucion()
+void Servidor::devolucion()
 {
     cmdCliente.println("HTTP/1.1 200 OK");
     cmdCliente.println("Content-Type: text/plain");
@@ -234,7 +234,7 @@ void server::devolucion()
     errorParse=0;
     errorCmd=0;
 }
-bool server::parseGET()
+bool Servidor::parseGET()
 {
     int ini=req.indexOf('?');
     int fin=req.indexOf(' ', ini);
@@ -243,13 +243,13 @@ bool server::parseGET()
 
     return (parseStr (buf));
 }
-bool server::parsePOST()
+bool Servidor::parsePOST()
 {
     message.remove(message.length()-1);
 
     return (parseStr (message));
 }
-bool server::parseStr(String str)
+bool Servidor::parseStr(String str)
 {
     user="";
     clave="";
@@ -297,7 +297,7 @@ bool server::parseStr(String str)
 
     return 1;
 }
-String server::retornoLecturas ()
+String Servidor::retornoLecturas ()
 {
     String r;
     cmd.toLowerCase();
@@ -347,7 +347,7 @@ String server::retornoLecturas ()
 
     return r;
 }
-bool server::cambioMac()
+bool Servidor::cambioMac()
 {
     int n=param.length();
     int contEsp=0; //Contador de espacios de losdiferentes campos
@@ -403,9 +403,9 @@ bool server::cambioMac()
 
     return 1;
 }
-bool server::cambioTempMax() {return cambioTemp (1);}
-bool server::cambioTempMin() {return cambioTemp (0);}
-bool server::cambioTemp(bool flag)
+bool Servidor::cambioTempMax() {return cambioTemp (1);}
+bool Servidor::cambioTempMin() {return cambioTemp (0);}
+bool Servidor::cambioTemp(bool flag)
 {
     int n=param.length();
     bool negative=0;
@@ -446,7 +446,7 @@ bool server::cambioTemp(bool flag)
     }
     return 0;
 }
-bool server::cambioTomas()
+bool Servidor::cambioTomas()
 {
     if(param.length()!=3 && !isInteger(param[0]) && param[1]=='+' && !isBool(param [2])) return 0;
     
@@ -462,7 +462,7 @@ bool server::cambioTomas()
     else data->estTomas[toma]=accion;
     return 1;
 }
-bool server::cambioIp()
+bool Servidor::cambioIp()
 {
     IPAddress aux;
     if(!aux.fromString(param)) return 0;
@@ -477,7 +477,7 @@ bool server::cambioIp()
     if (!data->dhcp);
     return 1;
 }
-bool server::cambioDhcp()
+bool Servidor::cambioDhcp()
 {
     int n=param.length();
     if(n!=1) return 0;
@@ -490,7 +490,7 @@ bool server::cambioDhcp()
     data->dhcp=param.toInt ();
     return 1;
 }
-bool server::cambioPuerto()
+bool Servidor::cambioPuerto()
 {
     int n=param.length();
     for(int i=0; i<n; i++) if(!isInteger(param[i])) return 0;
@@ -502,7 +502,7 @@ bool server::cambioPuerto()
     data->puerto=param.toInt ();
     return 1;
 }
-bool server::cambioClave()
+bool Servidor::cambioClave()
 {
     int n=param.length();
     if(n<5 || n>15) return 0;
@@ -515,7 +515,7 @@ bool server::cambioClave()
     bufferClave=param;    
     return 1;
 }
-bool server::cambioUser()
+bool Servidor::cambioUser()
 {
     int n=param.length();
     if(n<5 || n>15) return 0;
@@ -528,7 +528,7 @@ bool server::cambioUser()
     bufferUser=param;    
     return 1;
 }
-bool server::verificarCambio()
+bool Servidor::verificarCambio()
 {
     int finUser=param.indexOf('+');
     if(finUser==-1) return 0;
@@ -562,7 +562,7 @@ bool server::verificarCambio()
     else return 0;
     return 1;
 }
-void server::checkDHCP ()
+void Servidor::checkDHCP ()
 {
     /*
     *   --0: el metoro hizo algo mal

@@ -11,10 +11,10 @@
 #define PERIODODEF 250
 #define PERIODOMIN 1
 
-class pulsadores
+class Pulsadores
 {
     public: 
-        pulsadores(PINES &);
+        Pulsadores(PINES &);
         bool checkMenu(uint8_t p);
         bool checkTomas(uint8_t p);
         void begin();

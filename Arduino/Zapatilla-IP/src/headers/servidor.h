@@ -38,10 +38,10 @@ enum PET
     POST
 };
 
-class server: EthernetServer
+class Servidor: EthernetServer
 {
     public:
-        server(DATA &data);
+        Servidor(DATA &data);
 
         void setup();
         void load();
@@ -89,12 +89,12 @@ class server: EthernetServer
             "puerto", "usuario", "clave",
             "verificar" 
         };
-        bool (server::*fun[10]) () = 
+        bool (Servidor::*fun[10]) () = 
         { 
-            &server::cambioMac, &server::cambioTempMax, &server::cambioTempMin, 
-            &server::cambioTomas, &server::cambioIp, &server::cambioDhcp, 
-            &server::cambioPuerto, &server::cambioUser, &server::cambioClave, 
-            &server::verificarCambio 
+            &Servidor::cambioMac, &Servidor::cambioTempMax, &Servidor::cambioTempMin, 
+            &Servidor::cambioTomas, &Servidor::cambioIp, &Servidor::cambioDhcp, 
+            &Servidor::cambioPuerto, &Servidor::cambioUser, &Servidor::cambioClave, 
+            &Servidor::verificarCambio 
         };
         unsigned long millisDHCP=0;
 };

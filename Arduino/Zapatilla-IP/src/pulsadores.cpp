@@ -1,16 +1,16 @@
 #include "headers/pulsadores.h"
 
-pulsadores::pulsadores(PINES &pin)
+Pulsadores::Pulsadores(PINES &pin)
 {
     this->pin = &pin;
 }
 
-void pulsadores::begin()
+void Pulsadores::begin()
 {
     for(uint8_t i=0; i<4; i++)  pinMode(pin->pulMenu[i], INPUT_PULLUP);
     for(uint8_t i=0; i<N; i++)  pinMode(pin->pulTomas[i], INPUT_PULLUP);
 }
-bool pulsadores::checkTomas(uint8_t p)
+bool Pulsadores::checkTomas(uint8_t p)
 {
     bool retorno = 0;
     if(!digitalRead(pin->pulTomas[p]) && !flagTomas[p]) 
@@ -24,7 +24,7 @@ bool pulsadores::checkTomas(uint8_t p)
     }
     return retorno;
 }
-bool pulsadores::checkMenu(uint8_t p)
+bool Pulsadores::checkMenu(uint8_t p)
 {
     bool retorno = 0;
     if(flagTimer && (p == IZQ || p == DER))

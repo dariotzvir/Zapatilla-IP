@@ -1,12 +1,12 @@
 #include "headers/tomacorrientes.h"
 
-tomacorrientes::tomacorrientes(DATA &data, PINES &pin) 
+Tomacorrientes::Tomacorrientes(DATA &data, PINES &pin) 
 { 
     this->data = &data; 
     this->pin = &pin;
 }
 
-void tomacorrientes::begin()
+void Tomacorrientes::begin()
 {
     for(uint8_t i=0 ;i<N ;i++) 
     {
@@ -16,12 +16,12 @@ void tomacorrientes::begin()
     }
 }
 
-void tomacorrientes::invertir(uint8_t p)
+void Tomacorrientes::invertir(uint8_t p)
 {
     data->estTomas[p] = !data->estTomas[p];
     conm(p, data->estTomas[p]);
 }
-void tomacorrientes::conm(uint8_t p, bool estado)
+void Tomacorrientes::conm(uint8_t p, bool estado)
 { 
     estado = !estado;
     digitalWrite(pin->tomas[p], estado);

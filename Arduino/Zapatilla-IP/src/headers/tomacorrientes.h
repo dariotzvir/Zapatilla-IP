@@ -8,10 +8,10 @@
 #define N 5
 #endif
 
-class tomacorrientes
+class Tomacorrientes
 {
     public: 
-        tomacorrientes(DATA &, PINES &);
+        Tomacorrientes(DATA &, PINES &);
         void conm(uint8_t, bool);
         void invertir(uint8_t);
         void begin();

@@ -7,27 +7,27 @@
 #include <avr/wdt.h>
 
 #define N 5
+#define PERIODOANALOG 1000
+#define PERIODODHT 2000
+#define PERIODOPAN 30000
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
 #include "src/headers/pulsadores.h"
 #include "src/headers/pantallaOLED.h"
-#include "src/headers/server.h"
+#include "src/headers/servidor.h"
 #include "src/ACS712/ACS712.h"
 #include "src/DHT22/DHT.h"
 #include "src/Filters-master/Filters.h"
-
-void guardarSD();
-void(*ptrGuardarSD)() = &guardarSD;
 
 //Objetos:
 struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
 struct PINES pin;
 DHT _dht(pin.pinDHT , DHT22);
-tomacorrientes _tomas(data, pin);
-pulsadores _pulsadores(pin);
-pantallaOLED _pantalla(data);
-server _server(data);
+Tomacorrientes _tomas(data, pin);
+Pulsadores _pulsadores(pin);
+PantallaOLED _pantalla(data);
+Servidor _server(data);
 RunningStatistics _zmpt;
 RunningStatistics _ACS[N];
 IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea de fábrica
@@ -40,17 +40,11 @@ unsigned long millisAnalog = 0;
 bool flagErrorSD = 0;
 bool flagReset = 0;
 
-const int periodoAnalog = 1000;//TODO: pasar a define
-const int periodoPan = (int) 30000;//TODO: pasar a define          
-const int periodoDHT = 2000;//TODO: pasar a define    
-
 unsigned long a = 0; //Bodge debug
 
 void setup() 
 {         
-    #ifdef DEBUGSD || DEBUGMAC || DEBUGDHCP || DEBUGPET || DEBUGPUL || DEBUGANALOG
     Serial.begin(BAUD2);
-    #endif
     data.ipDef = ipStored;
 
     SD.begin(4);
@@ -79,7 +73,7 @@ void setup()
     #ifdef DEBUGMAC
     for(int i : data.mac) Serial.println(i, 16);
     #endif
-    server _aux(data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
+    Servidor _aux(data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
     _server = _aux;       //queda inicializado con el puerto con el valor determinado(80)
     _server.setup(); 
     data.actIpString();
@@ -116,7 +110,7 @@ void loop()
 void funDHT()
 {
   //Comprueba el tiempo entre cada muestra, las actualiza cada 2 segundos y luego comprueba si la temperatura está en los rangos de tempMax y tempMin.
-  if(millis()-millisDHT >= periodoDHT)
+  if(millis()-millisDHT >= PERIODODHT)
   {
     millisDHT = millis();
     data.temp = _dht.readTemperature();
@@ -196,7 +190,7 @@ void funPantalla()
         7 -- Menú de estado de la tarjeta SD
         8 -- Panatalla de reset
     */
-    if(millis()-millisPan>=periodoPan && _pantalla.flagSelec == 0) _pantalla.pantallaSelec = 0; //Si se supera el tiempo del timer se apaga la pantalla
+    if(millis()-millisPan>=PERIODOPAN && _pantalla.flagSelec == 0) _pantalla.pantallaSelec = 0; //Si se supera el tiempo del timer se apaga la pantalla
     switch(_pantalla.pantallaSelec)
     {
         case APAGADA: 
@@ -375,7 +369,7 @@ void funAnalog()
         #ifdef DEBUGANALOG
         Serial.print("\n");
         Serial.print("Tension:");
-        Serial.print(data.sensZMPT*(_zmpt.sigma()-data.yCalibZMPT));
+        Serial.print((_zmpt.sigma()));
         Serial.print(", ");
         Serial.print("Tiempo:");
         Serial.print(millis()-a+210);
@@ -423,7 +417,7 @@ void funserver()
                 break;
             case 6:
                 _pantalla.pantallaBoot();
-                server _aux(data); 
+                Servidor _aux(data); 
                 _server = _aux; 
                 _server.load();
                 guardarSD();
