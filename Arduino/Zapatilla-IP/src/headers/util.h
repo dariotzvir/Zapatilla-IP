@@ -16,7 +16,7 @@
 //#define DEBUGDHCP
 //#define DEBUGPET
 //#define DEBUGPUL
-#define DEBUGANALOG
+//#define DEBUGANALOG
 
 enum pantallas 
 {
@@ -45,7 +45,7 @@ struct DATA
     bool estTomas[N] = {1, 1, 1, 1, 1};
 
     float corriente[N] = {0, 0, 0, 0, 0};
-    int tension = 220;
+    float tension = 220;
     float temp, hum;
 
     int8_t tempMax = 125, tempMin = -40;
@@ -78,7 +78,7 @@ struct DATA
             
             hexDigit = mac[i] - 16*hexDigit;
             buf[i*5+3] = (hexDigit < 10 ? '0' : 'A'-10 ) + hexDigit;
-            buf[i*5+4] = (i!=5 ? ' ' : '\0' );
+            buf[i*5+4] = (i!=5 ? ':' : '\0' );
        }
         #ifdef DEBUGMAC
         for(char i : buf) Serial.print(i);
@@ -123,6 +123,8 @@ struct PINES
     const uint8_t pinRst = 18;
     const uint8_t pinSD = 4;
     const uint8_t pinDHT = 19;
+
+
 };
 
 #endif

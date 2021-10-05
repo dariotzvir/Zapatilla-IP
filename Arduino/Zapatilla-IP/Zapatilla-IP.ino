@@ -10,6 +10,7 @@
 #define PERIODOANALOG 1000
 #define PERIODODHT 2000
 #define PERIODOPAN 30000
+#define CTEFILTRO (60.0/50)
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
@@ -28,8 +29,8 @@ Tomacorrientes _tomas(data, pin);
 Pulsadores _pulsadores(pin);
 PantallaOLED _pantalla(data);
 Servidor _server(data);
-RunningStatistics _zmpt;
-RunningStatistics _ACS[N];
+//RunningStatistics _zmpt;
+//RunningStatistics _ACS[N];
 IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea de fábrica
 StaticJsonDocument <300> configJson;
 byte macDef[6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
@@ -88,12 +89,12 @@ void setup()
     _dht.begin();
 
     pinMode(pin.pinZmpt, INPUT);
-    _zmpt.setWindowSecs(20.0/50);
+    //_zmpt.setWindowSecs(CTEFILTRO);
 
     for(int i=0; i<N; i++)
     {
         pinMode(pin.ACS[i], INPUT);
-        _ACS[i].setWindowSecs(70.0/50);
+        //_ACS[i].setWindowSecs(CTEFILTRO);
     }
 
     _pantalla.pantallaPrincipal();
@@ -361,24 +362,49 @@ void crearSDdefecto()
 }
 void funAnalog()
 {
-    for(int j=0; j<10; j++)
+    static int c=0;
+    static unsigned long sumZMPTSQ=0, sumACSSQ[N]={0};
+    unsigned long muestra;
+    for(int i=0; i<5; i++) 
     {
-        for(int i=0; i<N; i++) _ACS[i].input(analogRead(pin.ACS[i])); 
-        _zmpt.input(analogRead(pin.pinZmpt));
-        
-        #ifdef DEBUGANALOG
-        Serial.print("\n");
-        Serial.print("Tension:");
-        Serial.print((_zmpt.sigma()));
-        Serial.print(", ");
-        Serial.print("Tiempo:");
-        Serial.print(millis()-a+210);
-        Serial.print("\r\n");
-        a = millis();
-        #endif
-
-        delay ( 1 );
+        muestra=analogRead(pin.ACS[i])-512;
+        sumACSSQ[i]+=(muestra*muestra);
     }
+    muestra=analogRead(pin.pinZmpt)-512;
+    sumZMPTSQ+=(muestra*muestra);
+
+    #ifdef DEBUGANALOG
+    Serial.print("\n");
+    Serial.print("ADC:");
+    Serial.print((10000+muestra));
+    Serial.print(",");
+    Serial.print("SumSQ:");
+    Serial.print((0.001*sumZMPTSQ));
+    Serial.print(",");
+    Serial.print("SQINST:");
+    Serial.print((muestra*muestra));
+    Serial.print(",");
+    Serial.print("Tension:");
+    Serial.println((100.0*data.tension));
+    #endif
+
+    if(c==384)
+    {
+        static unsigned long a=0;
+        
+        Serial.println(millis()-a);
+
+        for(int i=0; i<5; i++) data.corriente[i]=sqrt(sumACSSQ[i]/384.0);
+        data.tension=sqrt(sumZMPTSQ/384.0);
+    
+        for(int i=0; i<5; i++) sumACSSQ[i]=0;
+        sumZMPTSQ=0;
+
+        c=0;
+
+        a=millis();
+    }
+    else c++;
 }
 void funserver()
 {

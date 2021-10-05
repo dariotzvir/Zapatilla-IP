@@ -322,7 +322,7 @@ String Servidor::retornoLecturas ()
     }
     else if(cmd=="tempmax") r= String(data->tempMax) + 'C';
     else if(cmd=="tempmin") r= String(data->tempMin) + 'C';
-    else if(cmd=="temp ") r= String(data->temp) + 'C';
+    else if(cmd=="temp") r= String(data->temp) + 'C';
     else if(cmd=="hum") r= String(data->hum) + '%' ;
     else if(cmd=="tension") r= String(data->tension) + 'V' ;
     else if(cmd=="dhcp") r=(data->dhcp ? "Si" : "No");
@@ -362,8 +362,8 @@ bool Servidor::cambioMac()
     {
         char c=toupper(param[i]);
 
-        if(!isHexadecimalDigit(c) && c!='+') return 0;
-        if(c=='+')
+        if(!isHexadecimalDigit(c) && c!=':') return 0;
+        if(c==':')
         {
             #ifdef DEBUGPET
             Serial.print('$');
