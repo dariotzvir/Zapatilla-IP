@@ -10,7 +10,10 @@
 #define PERIODOANALOG 1000
 #define PERIODODHT 2000
 #define PERIODOPAN 30000
-#define CTEFILTRO (60.0/50)
+#define NMUESTRAS 256
+#define MIDPOINTZMPT (512-25)
+#define MIDPOINTACS (512-25)
+#define FACTORZMPT 2.8846
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
@@ -364,13 +367,13 @@ void funAnalog()
 {
     static int c=0;
     static unsigned long sumZMPTSQ=0, sumACSSQ[N]={0};
-    unsigned long muestra;
+    int8_t muestra;
     for(int i=0; i<5; i++) 
     {
-        muestra=analogRead(pin.ACS[i])-512;
+        muestra=analogRead(pin.ACS[i])-MIDPOINTACS;
         sumACSSQ[i]+=(muestra*muestra);
     }
-    muestra=analogRead(pin.pinZmpt)-512;
+    muestra=analogRead(pin.pinZmpt)-MIDPOINTZMPT;
     sumZMPTSQ+=(muestra*muestra);
 
     #ifdef DEBUGANALOG
@@ -388,17 +391,24 @@ void funAnalog()
     Serial.println((100.0*data.tension));
     #endif
 
-    if(c==384)
+    if(c==NMUESTRAS)
     {
         static unsigned long a=0;
         
-        Serial.println(millis()-a);
+        Serial.println();
 
-        for(int i=0; i<5; i++) data.corriente[i]=sqrt(sumACSSQ[i]/384.0);
-        data.tension=sqrt(sumZMPTSQ/384.0);
+        for(int i=0; i<5; i++) data.corriente[i]=sqrt((double)sumACSSQ[i]/NMUESTRAS);
+        data.tension=FACTORZMPT*sqrt((double)sumZMPTSQ/NMUESTRAS);
     
         for(int i=0; i<5; i++) sumACSSQ[i]=0;
         sumZMPTSQ=0;
+
+        Serial.print("ADC: ");
+        Serial.print(muestra);
+        Serial.print("\tMillis: ");
+        Serial.print(millis()-a);
+        Serial.print("\tTension: ");
+        Serial.println(data.tension);
 
         c=0;
 
