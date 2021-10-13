@@ -11,9 +11,9 @@
 #define PERIODODHT 2000
 #define PERIODOPAN 30000
 #define NMUESTRAS 256
-#define MIDPOINTZMPT (512-25)
-#define MIDPOINTACS (512-25)
-#define FACTORZMPT 2.8846
+#define MIDPOINTZMPT 25
+#define MIDPOINTACS 25
+#define FACTORZMPT 2.87
 
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
@@ -48,9 +48,11 @@ unsigned long a = 0; //Bodge debug
 
 void setup() 
 {         
+    analogReference(EXTERNAL);
+
     Serial.begin(BAUD2);
     data.ipDef = ipStored;
-
+    
     SD.begin(4);
     SD.end();
     if(!SD.begin(4)) 
@@ -92,13 +94,9 @@ void setup()
     _dht.begin();
 
     pinMode(pin.pinZmpt, INPUT);
-    //_zmpt.setWindowSecs(CTEFILTRO);
 
-    for(int i=0; i<N; i++)
-    {
+    for(uint8_t i=0; i<N; i++)
         pinMode(pin.ACS[i], INPUT);
-        //_ACS[i].setWindowSecs(CTEFILTRO);
-    }
 
     _pantalla.pantallaPrincipal();
 }
@@ -221,7 +219,6 @@ void reset()
 }
 void guardarSD()
 {
-    Serial.println("asodoasbdoiasbdoiabsodibasobdaoisbdoiasbdoaisbdoiasbdoiasbdoasibdoiasdbasidbasd");
     if(flagErrorSD==0)
     {
         #ifdef DEBUGSD
@@ -370,10 +367,10 @@ void funAnalog()
     int8_t muestra;
     for(int i=0; i<5; i++) 
     {
-        muestra=analogRead(pin.ACS[i])-MIDPOINTACS;
+        muestra=analogRead(pin.ACS[i])-512;
         sumACSSQ[i]+=(muestra*muestra);
     }
-    muestra=analogRead(pin.pinZmpt)-MIDPOINTZMPT;
+    muestra=analogRead(pin.pinZmpt)-512;
     sumZMPTSQ+=(muestra*muestra);
 
     #ifdef DEBUGANALOG
@@ -391,30 +388,31 @@ void funAnalog()
     Serial.println((100.0*data.tension));
     #endif
 
-    if(c==NMUESTRAS)
+    if(++c==NMUESTRAS)
     {
         static unsigned long a=0;
         
         Serial.println();
 
-        for(int i=0; i<5; i++) data.corriente[i]=sqrt((double)sumACSSQ[i]/NMUESTRAS);
-        data.tension=FACTORZMPT*sqrt((double)sumZMPTSQ/NMUESTRAS);
+        for(int i=0; i<5; i++) data.corriente[i] = sqrt((double)sumACSSQ[i] / NMUESTRAS);
+        data.tension = FACTORZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS);
     
         for(int i=0; i<5; i++) sumACSSQ[i]=0;
         sumZMPTSQ=0;
 
-        Serial.print("ADC: ");
+        Serial.print("ADC:");
         Serial.print(muestra);
-        Serial.print("\tMillis: ");
+        Serial.print(" Millis: ");
         Serial.print(millis()-a);
-        Serial.print("\tTension: ");
-        Serial.println(data.tension);
+        Serial.print(" Tension:");
+        Serial.print(data.tension);
+        Serial.print(" Sigma: ");
+        Serial.println(data.tension/FACTORZMPT);
 
         c=0;
 
         a=millis();
     }
-    else c++;
 }
 void funserver()
 {
