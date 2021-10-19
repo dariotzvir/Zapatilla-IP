@@ -1,20 +1,22 @@
 /*
     dariotzvir@gmail.com
 */
-//Librerías:
-#include <SD.h>
-#include <ArduinoJson.h>
-#include <avr/wdt.h>
 
+//Constantes
 #define N 5
-#define PERIODOANALOG 1000
-#define PERIODODHT 2000
-#define PERIODOPAN 30000
+#define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
+#define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
 #define NMUESTRAS 256
 #define MIDPOINTZMPT 25
 #define MIDPOINTACS 25
 #define FACTORZMPT 2.87
 
+//Librerías:
+#include <SD.h>
+#include <ArduinoJson.h>
+#include <avr/wdt.h>
+
+//Librerías con ruta relativa:
 #include "src/headers/util.h"
 #include "src/headers/tomacorrientes.h"
 #include "src/headers/pulsadores.h"
@@ -24,38 +26,46 @@
 #include "src/DHT22/DHT.h"
 #include "src/Filters-master/Filters.h"
 
-//Objetos:
+//Estructuras:
 struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
-struct PINES pin;
+struct PINES pin;//Data de todo el IO
+
+//Objetos:
 DHT _dht(pin.pinDHT , DHT22);
 Tomacorrientes _tomas(data, pin);
 Pulsadores _pulsadores(pin);
 PantallaOLED _pantalla(data);
 Servidor _server(data);
-//RunningStatistics _zmpt;
-//RunningStatistics _ACS[N];
 IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea de fábrica
 StaticJsonDocument <300> configJson;
-byte macDef[6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+
+byte macDef[6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //Dirección MAC hardcodeada
+
+//Contadores de tiempo miscelanes:
 unsigned long millisDHT = 0;
 unsigned long millisPan = 0;
 unsigned long millisAnalog = 0;
-            
-bool flagErrorSD = 0;
-bool flagReset = 0;
 
-unsigned long a = 0; //Bodge debug
+//Flags:
+bool flagErrorSD = 0;
+bool flagReset = 0; //El reset tiene un flag que se ejecuta en el loop ya que no se puede llamar al WDT durante una ISR
 
 void setup() 
 {         
     analogReference(EXTERNAL);
 
     Serial.begin(BAUD2);
-    data.ipDef = ipStored;
+    data.ipDef = ipStored; //Cargo la ip fija ya que no se puede al crear al prototipo de la estructura
     
-    SD.begin(4);
+    /**
+     * Se inicia dos veces la instancia de la tarjeta SD ya que usalmente falla al hacerlo solo una vez 
+     * falla.
+     * Si aún así falla se corre con las configuraciones de fábrica.
+     * Si inicializa bien la tarjeta se cargan los datos.
+     */
+    SD.begin(pin.pinSD);
     SD.end();
-    if(!SD.begin(4)) 
+    if(!SD.begin(pin.pinSD)) 
     {
         #ifdef DEBUGSD
         Serial.println("SD falla");
@@ -73,17 +83,27 @@ void setup()
     _pantalla.setup(); 
     _pantalla.pantallaBoot();
 
+    /**
+     * Setteo del reset y la interrupción de hardware
+     */ 
     pinMode(pin.pinRst, INPUT);
     attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, RISING);
 
     #ifdef DEBUGMAC
     for(int i : data.mac) Serial.println(i, 16);
     #endif
-    Servidor _aux(data);   //Se crea un nuevo objeto que carga el puerto correctamente desde la SD, ya que al declarar globalmente
-    _server = _aux;       //queda inicializado con el puerto con el valor determinado(80)
+
+    /**
+     * Se actualiza la data con lo cargado desde la SD, creo un nuevo objeto y lo copio con la data desada.
+     * Actualizo también la MAC e IP en forma de string que después se usa.
+     */
+
+    Servidor _aux(data);
+    _server = _aux;
     _server.setup(); 
     data.actIpString();
     data.actMacString();
+
     #ifdef DEBUGMAC
     Serial.println("Debug MAC:");
     Serial.println(data.macString);
@@ -94,7 +114,6 @@ void setup()
     _dht.begin();
 
     pinMode(pin.pinZmpt, INPUT);
-
     for(uint8_t i=0; i<N; i++)
         pinMode(pin.ACS[i], INPUT);
 
@@ -117,6 +136,7 @@ void funDHT()
     millisDHT = millis();
     data.temp = _dht.readTemperature();
     data.hum = _dht.readHumidity();
+
     //Si la temperatura está por arriba del límite y el toma está apagado lo prende, y viceversa.
     if(data.temp>data.tempMax && data.estTomas[4] == 0) _tomas.invertir(4);
     if(data.temp<data.tempMin && data.estTomas[4] == 1) _tomas.invertir(4);
@@ -124,59 +144,48 @@ void funDHT()
 }
 void funPul()
 {   
-    for(int i=0; i<N; i++) 
-    {
+    for(uint8_t i=0; i<N; i++) 
         if(_pulsadores.checkTomas(i)) 
         {
             _tomas.invertir(i);
             guardarSD();
         }
-    }
-    for(int i=0; i<4; i++) if(_pulsadores.checkMenu(i))
-    {
-        millisPan = millis();
-        switch(i)
+    for(uint8_t i=0; i<3; i++) 
+        if(_pulsadores.checkMenu(i))
         {
-            case 0:
-                //ON/OFF
-                _pantalla.logicaOnOff();
-                _pulsadores.flagTimer = 0;
-                break;
-            case 1:
-                //Ent
-                switch(_pantalla.logicaEnter())
-                {
-                    case 0:
-                        if(_pantalla.pantallaSelec == TMIN || _pantalla.pantallaSelec == TMAX) _pulsadores.flagTimer = 1;
-                        break;
-                    case 3:
-                        guardarSD();
-                        _pulsadores.flagTimer = 0;
-                        _server.load();
-                        _pantalla.resetBuf();
-                        break;
-                    default:
-                        guardarSD();
-                        _pulsadores.flagTimer = 0;
-                        break;
-                }
-                break;
-            case 2:
-                //Der
-                _pantalla.logicaDer();
-                break;
-            case 3:
-                //Izq
-                _pantalla.logicaIzq();
-                break;
-            case 4:
-                //Reset
-                _pantalla.pantallaSelec = RESET; //Selecciona la pantalla de reset especial
-                funPantalla();
-                reset();
-                break;
+            millisPan = millis();
+            switch(i)
+            {
+                case ONOFF:
+                    _pantalla.logicaOnOff();
+                    _pulsadores.flagTimer = 0;
+                    break;
+                case ENTER:
+                    switch(_pantalla.logicaEnter())
+                    {
+                        case 0:
+                            if(_pantalla.pantallaSelec == TMIN || _pantalla.pantallaSelec == TMAX) _pulsadores.flagTimer = 1;
+                            break;
+                        case 3:
+                            guardarSD();
+                            _pulsadores.flagTimer = 0;
+                            _server.load();
+                            _pantalla.resetBuf();
+                            break;
+                        default:
+                            guardarSD();
+                            _pulsadores.flagTimer = 0;
+                            break;
+                    }
+                    break;
+                case DER:
+                    _pantalla.logicaDer();
+                    break;
+                case IZQ:
+                    _pantalla.logicaIzq();
+                    break;
+            }
         }
-    }
 }
 void funPantalla()
 {
@@ -211,15 +220,15 @@ void funPantalla()
 }
 void reset()
 {
-    if(flagErrorSD == 0) crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
     _pantalla.pantallaReset();
+    if(!flagErrorSD) crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
     wdt_enable(WDTO_60MS); //Llama al watchdog
 
     while(1);
 }
 void guardarSD()
 {
-    if(flagErrorSD==0)
+    if(!flagErrorSD)
     {
         #ifdef DEBUGSD
         Serial.println("Guardando");
@@ -236,33 +245,34 @@ void guardarSD()
         configJson["puerto"] = data.puerto;
 
         for(int i=0; i<N; i++) configJson["estado"][i] = data.estTomas[i];
-        for(int i=0; i<6; i++) configJson["mac"][i] =(int) data.mac[i];
+        for(int i=0; i<6; i++) configJson["mac"][i] = (int)data.mac[i];
 
-        if(SD.exists("config.txt")) SD.remove("config.txt");
-        File config = SD.open("config.txt", FILE_WRITE);
-        
+        if(SD.exists("config.txt")) SD.remove("config.txt"); //Borra el archivo de configuración.
+        File config = SD.open("config.txt", FILE_WRITE); //Crea un nuevo archivo de configuración.
+        serializeJsonPretty(configJson, config); //Escribe el archivo.
+        config.close(); //Cierra el archivo.
+
         #ifdef DEBUGSD
         String buffer = "";
         serializeJsonPretty(configJson, buffer);
         config.print(buffer);
         Serial.println("Buffer JSON");
         Serial.println(buffer);
-        #else 
-        serializeJsonPretty(configJson, config);
         #endif
-
-        config.close();
     }  
 }
+/**
+ * @brief TODO verificar que los datos existan antes de leerlos.
+ */
 void cargarSD()
 {   
     if(SD.exists("config.txt"))
     {
-        configJson.clear();
-        File config = SD.open("config.txt");
+        configJson.clear(); //Limpia el JSON por las dudas.
+        File config = SD.open("config.txt"); //Abre el archivo de configuración.
 
         DeserializationError error = deserializeJson(configJson, config);
-        config.close();
+        config.close(); //Cierra el archivo.
         
         #ifdef DEBUGSD
         Serial.println("Si hay archivo");
@@ -273,7 +283,7 @@ void cargarSD()
         {
             byte aux[4];
 
-            for(int i=0; i<4; i++) aux[i] = configJson["ipDef"][i];
+            for(uint8_t i=0; i<4; i++) aux[i] = configJson["ipDef"][i];
             data.ipDef = aux;
             
             data.puerto = configJson["puerto"];
@@ -287,15 +297,15 @@ void cargarSD()
             if(data.tempMin > data.tempMax || data.tempMin < -40) data.tempMin = -40;
             //else data.tempMin = data.tempMax;
 
-            for(int i=0; i<N; i++) 
+            for(uint8_t i=0; i<N; i++) 
             {
                 data.estTomas[i] = configJson["estado"][i];
                 _tomas.conm(i, data.estTomas[i]);
             }
 
-            for(int i=0; i<6; i++) data.mac[i] =(int) configJson["mac"][i];
+            for(uint8_t i=0; i<6; i++) data.mac[i] = (int)configJson["mac"][i]; //Se castea porque sinó da problemas
 
-            String u = configJson["usuario"];
+            String u = configJson["usuario"]; //Escribo a un objeto de String porque el casteo no funciona
             data.usuario = u;
             String c = configJson["clave"];
             data.clave = c; 
@@ -326,7 +336,7 @@ void cargarSD()
             for(int i=0; i<4; i++) Serial.println((int) configJson["ipDef"][i]);
             #endif
         }
-        else crearSDdefecto();
+        else crearSDdefecto(); //Si el archivo por alguna razón tiene un problema crea el archivo default.
     }
     else 
     {
@@ -336,15 +346,23 @@ void cargarSD()
         crearSDdefecto(); //Si no se tiene un archivo se crea uno por defecto con todos los valores de la flash
     }
 }
+/**
+ * @brief Escribe el archivo default de configuración para la tarjeta SD.
+ */
 void crearSDdefecto()
 {
     #ifdef DEBUGSD
     Serial.println("Creando por defecto");
     #endif
-    configJson.clear();
+    configJson.clear(); //Limpia el JSON por las dudas.
 
     for(int i=0; i<4; i++) configJson["ipDef"][i] = ipStored[i];
-    configJson["tempMax"] = 125;
+    /**
+     * Los valores default de temperatura son según las especificaciones del sensor:
+     * 125°C tempMax
+     * -40°C tempMin
+     */
+    configJson["tempMax"] = 125; 
     configJson["tempMin"] = -40;
     configJson["dhcp"] = 0;
     configJson["puerto"] = 80;
@@ -355,23 +373,32 @@ void crearSDdefecto()
     for(int i=0; i<N; i++) configJson["estado"][i] = 1;
     for(int i=0; i<6; i++) configJson["mac"][i] =(int) macDef[i];
 
-    if(SD.exists("config.txt")) SD.remove("config.txt");
-    File config = SD.open("config.txt", FILE_WRITE);
-    serializeJsonPretty(configJson, config);
-    config.close();
+    if(SD.exists("config.txt")) SD.remove("config.txt"); //Borra el archivo de configuración.
+    File config = SD.open("config.txt", FILE_WRITE); //Crea uno nuevo en blanco.
+    serializeJsonPretty(configJson, config); //Lo escribe en formatop JSON.
+    config.close(); //Cierra el archivo.
 }
+/**
+ * 
+ * RMS = sqrt( Sumatoria(muestras^2)/NUM_muestras )
+ * Con el valor RMS luego se lo escala por un factor tomado prácticamente, ya que al dar los valores del ADC no se
+ * obtiene el dato escalado a la magnitud deseada.
+ * 
+ * @brief La función calcula el RMS de los sensores de tensión y corriente.
+ * 
+ */
 void funAnalog()
 {
     static int c=0;
     static unsigned long sumZMPTSQ=0, sumACSSQ[N]={0};
     int8_t muestra;
-    for(int i=0; i<5; i++) 
+    for(uint8_t i=0; i<N; i++) 
     {
-        muestra=analogRead(pin.ACS[i])-512;
-        sumACSSQ[i]+=(muestra*muestra);
+        muestra = analogRead(pin.ACS[i]) - 512; //Asume que 512 es el 0 de la señal (tendría que corregirse el sensor).
+        sumACSSQ[i] += (muestra*muestra); //Sumatoria
     }
-    muestra=analogRead(pin.pinZmpt)-512;
-    sumZMPTSQ+=(muestra*muestra);
+    muestra = analogRead(pin.pinZmpt) - 512;
+    sumZMPTSQ += (muestra*muestra);
 
     #ifdef DEBUGANALOG
     Serial.print("\n");
@@ -391,81 +418,61 @@ void funAnalog()
     if(++c==NMUESTRAS)
     {
         static unsigned long a=0;
-        
-        Serial.println();
 
-        for(int i=0; i<5; i++) data.corriente[i] = sqrt((double)sumACSSQ[i] / NMUESTRAS);
-        data.tension = FACTORZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS);
+        for(uint8_t i=0; i<5; i++) 
+            data.corriente[i] = sqrt((double)sumACSSQ[i] / NMUESTRAS);
+
+        data.tension = FACTORZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
     
-        for(int i=0; i<5; i++) sumACSSQ[i]=0;
+        //Reseto de las variables 
+        for(uint8_t i=0; i<5; i++) sumACSSQ[i]=0; //TODO borrar contenido con PROGMEM
         sumZMPTSQ=0;
+        c=0;
 
-        Serial.print("ADC:");
-        Serial.print(muestra);
-        Serial.print(" Millis: ");
-        Serial.print(millis()-a);
+        #ifdef DEBUGANALOG
         Serial.print(" Tension:");
         Serial.print(data.tension);
         Serial.print(" Sigma: ");
         Serial.println(data.tension/FACTORZMPT);
-
-        c=0;
-
-        a=millis();
+        #endif
     }
 }
+/**
+ * @brief Llama al método del objeto de Server y maneja los retornos con cambios externos a la clase
+ */
 void funserver()
 {
     int retorno = _server.rutina();
-    if(retorno>=0)
+    if(retorno >= 0)
     {
+        #ifdef DEBUGPET
         Serial.print("Retorno rutina server: ");
         Serial.println(retorno);
-        if(retorno==9) guardarSD();
+        #endif
         switch(retorno)
         {
-            case 0:
-                guardarSD();
-                break;
-            case 1:
-                guardarSD();
-                break;
-            case 2:
-                guardarSD();
-                break;
             case 3:
-                for(int i=0; i<N; i++) _tomas.conm (i, data.estTomas[i]);
-                guardarSD();
+                for(uint8_t i=0; i<N; i++) _tomas.conm(i, data.estTomas[i]);
                 break;
             case 4:
                 _pantalla.pantallaBoot();
                 if(!data.dhcp) _server.load();
-                guardarSD();
-                funPantalla();
                 break;
             case 5:
                 _pantalla.pantallaBoot();
                 _server.load();
-                guardarSD();
-                funPantalla();
                 break;
             case 6:
                 _pantalla.pantallaBoot();
                 Servidor _aux(data); 
                 _server = _aux; 
                 _server.load();
-                guardarSD();
-                funPantalla();    
                 break;
-            case 7:
-                break;
-            case 8:
-                break;
-            case 9://Està embrujado
-                guardarSD();
-                break;    
         }
-
+        if(retorno != 7 && retorno != 8) guardarSD();
     }
 }
+/**
+ * @brief ISR, cambia el flag de reset.
+ */
 void intReset(){flagReset = 1;}

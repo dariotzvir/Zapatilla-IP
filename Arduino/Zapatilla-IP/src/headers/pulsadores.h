@@ -1,13 +1,18 @@
 #ifndef __PUL_H__
 #define __PUL_H__
 
-#include "util.h"
+//Librerías:
 #include <Arduino.h>
 
+//Librerías locales:
+#include "util.h"
+
+//Si no pongo el define N se queja que no está declarado.
 #ifndef N
 #define N 5
 #endif
 
+//Periodos para ajustar la aceleración de cuando se deja pulsado un botón en el menú
 #define PERIODODEF 250
 #define PERIODOMIN 1
 
@@ -22,8 +27,8 @@ class Pulsadores
         bool flagTimer = 0;
 
     private:
-        bool flagTomas[5] = {0};
-        bool flagMenu[5] = {0};   //T1, T2, T3, T4, T5, ON, ENT, DER, IZQ
+        bool flagTomas[N] = {0};
+        bool flagMenu[N] = {0};
         unsigned long millisAcel = 0;
         uint8_t periodo = PERIODODEF;
         PINES *pin;
