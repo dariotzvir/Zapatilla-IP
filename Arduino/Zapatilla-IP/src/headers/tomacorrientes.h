@@ -1,7 +1,10 @@
 #ifndef __TOMAS_H__
 #define __TOMAS_H__
 
+//Librerías:
 #include <Arduino.h>
+
+//Librerías locales:
 #include "util.h"
 
 #ifndef N

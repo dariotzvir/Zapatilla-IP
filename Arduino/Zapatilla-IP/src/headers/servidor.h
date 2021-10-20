@@ -1,18 +1,13 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-
-/**
- * Esto es más que nada por no incluir cosas de más, dejarlo más legible y salvar un poco de
- * memoria, pero en lugar de incluir todo Arduino.h (por lo que ví solo usas String y Serial, a lo
- * mejor se me pasó algo), podés incluir específicamente las librerías que vayas a usar, como lo
- * serían WString.h (Para los String) y USBAPI.h (Para el Serial). Cuando usás, por ejemplo, uint8_t podés
- * definirlo vos mismo escribiendo typedef unsigned char uint8_t.
- */
+//Librerías:
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <ArduinoJson.h>
+
+//Librerías locales:
 #include "util.h"
 
 #ifndef N

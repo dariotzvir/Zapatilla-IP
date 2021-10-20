@@ -58,7 +58,7 @@ struct DATA
     IPAddress ipDef;
     /**
      * Se guarda la MAC e IP en un string ya que luego se usan en esta forma
-    */
+     */
     char macString[30];  
     char ipString[16];
 
