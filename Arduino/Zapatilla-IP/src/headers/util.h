@@ -1,9 +1,10 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-#include "IPAddress.h"
+//Librerías:
 #include <Arduino.h>
 #include <string.h>
+#include <IPAddress.h>
 
 #ifndef N
 #define N 5
@@ -18,7 +19,7 @@
 //#define DEBUGPUL
 //#define DEBUGANALOG
 
-enum pantallas 
+enum pantallas
 {
     APAGADA = 0,
     PRINCIPAL,
@@ -55,14 +56,11 @@ struct DATA
     uint16_t puerto = 80;
     byte mac[6] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
     IPAddress ipDef;
-    char macString[30];
+    /**
+     * Se guarda la MAC e IP en un string ya que luego se usan en esta forma
+    */
+    char macString[30];  
     char ipString[16];
-
-    const float yCalibACS = 0.6;
-    const float sensACS = 0.0586;
-
-    const float yCalibZMPT = 0;
-    const float sensZMPT = 1.31;
 
     void actMacString()
     {
@@ -123,8 +121,6 @@ struct PINES
     const uint8_t pinRst = 18;
     const uint8_t pinSD = 4;
     const uint8_t pinDHT = 19;
-
-
 };
 
 #endif

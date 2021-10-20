@@ -2,15 +2,6 @@
     dariotzvir@gmail.com
 */
 
-//Constantes
-#define N 5
-#define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
-#define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
-#define NMUESTRAS 256
-#define MIDPOINTZMPT 25
-#define MIDPOINTACS 25
-#define FACTORZMPT 2.87
-
 //Librerías:
 #include <SD.h>
 #include <ArduinoJson.h>
@@ -22,9 +13,16 @@
 #include "src/headers/pulsadores.h"
 #include "src/headers/pantallaOLED.h"
 #include "src/headers/servidor.h"
-#include "src/ACS712/ACS712.h"
 #include "src/DHT22/DHT.h"
-#include "src/Filters-master/Filters.h"
+
+//Constantes
+#define N 5
+#define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
+#define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
+#define NMUESTRAS 256
+#define MIDPOINTZMPT 25
+#define MIDPOINTACS 25
+#define FACTORZMPT 2.87
 
 //Estructuras:
 struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
