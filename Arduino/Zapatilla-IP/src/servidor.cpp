@@ -192,14 +192,13 @@ int8_t Servidor::ejecutarCmd()
 
     errorParam=0;
     
-    for(i=0; i<10; i++) 
+    for(i=0; i<M; i++) 
         if(cmd==str[i]) 
         {
             errorParam=!(this->*fun [i])();
             index=i;
             break;
         }
-    
 
     #ifdef DEBUGPET
     Serial.print("index cmd: $");
@@ -268,8 +267,8 @@ bool Servidor::parseStr(String str)
 
     if(ruta==CMD)
     {
-        int finCmd=str.indexOf('=', finClave+1);
-        if(finCmd==-1) return 0;
+        int finCmd=str.indexOf('=', finClave+1); //Fuerza a que todos los comandos lleven un parametero
+        if(finCmd==-1) return 0;                 //Molesta luego para los metodos de poner en cero
 
         cmd=str.substring(finClave+1, finCmd);
         param=str.substring(finCmd+1);
@@ -560,6 +559,58 @@ bool Servidor::verificarCambio()
         bufferClave="";
     }
     else return 0;
+    return 1;
+}
+bool Servidor::cambioCteZTMP()
+{
+    float vAct = param.toFloat();
+    #ifdef DEBUGPET
+    Serial.println("vAct: " + String (vAct));
+    #endif
+
+    if(vAct <= 0) return 0;
+    else
+    {
+        float sigma = data->tension/data->factorZMPT;
+        data->factorZMPT = vAct/sigma;
+
+        #ifdef DEBUGPET
+        Serial.println("factorACS: " + String (data->factorZMPT));
+        #endif
+    }
+    
+    return 1;
+}
+bool Servidor::cambioCteACS()
+{
+    float iAct = param.toFloat();
+    #ifdef DEBUGPET
+    Serial.println("iAct: " + String (iAct));
+    #endif
+
+    if(iAct <= 0) return 0;
+    else
+    {
+        float sigma = data->corriente[0]/data->factorACS;
+        data->factorACS = iAct/sigma;
+
+        #ifdef DEBUGPET
+        Serial.println("factorACS: " + String (data->factorACS));
+        #endif    
+    }
+    
+    return 1;
+}
+bool Servidor::cambioCeroZMPT()
+{
+    data->midPointZMPT = data->tension;
+    
+    return 1;
+}
+bool Servidor::cambioCeroACS()
+{
+    data->midPointACS = data->corriente[0];
+
     return 1;
 }
 void Servidor::checkDHCP ()

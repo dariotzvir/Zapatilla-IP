@@ -49,6 +49,10 @@ struct DATA
     float tension = 220;
     float temp, hum;
 
+    float factorZMPT = 2.563;
+    float factorACS = 2.563;
+    int midPointZMPT = 25, midPointACS = 25; 
+
     int8_t tempMax = 125, tempMin = -40;
     String usuario = "admin", clave = "12345";
 
@@ -104,7 +108,7 @@ struct DATA
         for(char i : buf) Serial.print(i);
         Serial.println("");
         #endif
-        strcpy(ipString, buf );
+        strcpy(ipString, buf);
    }
 };
 

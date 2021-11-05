@@ -13,6 +13,7 @@
 #ifndef N
 #define N 5
 #endif
+#define M 14
 #define FUERARANGO "Fuera de rango"
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
@@ -65,6 +66,10 @@ class Servidor: EthernetServer
         bool cambioUser();
         bool cambioClave();
         bool verificarCambio();
+        bool cambioCteZTMP();
+        bool cambioCteACS();
+        bool cambioCeroZMPT();
+        bool cambioCeroACS();
 
         String retornoLecturas();
         bool parseGET(), parsePOST(), parseStr(String str);
@@ -77,19 +82,21 @@ class Servidor: EthernetServer
 
         String bufferClave, bufferUser;
 
-        const char *str[10] = 
+        const char *str[M] = 
         { 
             "mac", "tempmax", "tempmin", 
             "tomas", "ipdef", "dhcp", 
             "puerto", "usuario", "clave",
-            "verificar" 
+            "verificar", "calibtension", "calibcorriente", 
+            "cerotension", "cerocorriente"
         };
-        bool (Servidor::*fun[10]) () = 
+        bool (Servidor::*fun[M]) () = 
         { 
             &Servidor::cambioMac, &Servidor::cambioTempMax, &Servidor::cambioTempMin, 
             &Servidor::cambioTomas, &Servidor::cambioIp, &Servidor::cambioDhcp, 
             &Servidor::cambioPuerto, &Servidor::cambioUser, &Servidor::cambioClave, 
-            &Servidor::verificarCambio 
+            &Servidor::verificarCambio, &Servidor::cambioCteZTMP, &Servidor::cambioCteACS,
+            &Servidor::cambioCeroZMPT, &Servidor::cambioCeroACS
         };
         unsigned long millisDHCP=0;
 };

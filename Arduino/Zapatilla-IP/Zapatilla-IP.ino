@@ -19,10 +19,12 @@
 #define N 5
 #define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
 #define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
-#define NMUESTRAS 256
+#define NMUESTRAS 350
+/*
 #define MIDPOINTZMPT 25
 #define MIDPOINTACS 25
-#define FACTORZMPT 2.87
+#define FACTORZMPT 2.563
+*/
 
 //Estructuras:
 struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
@@ -35,7 +37,7 @@ Pulsadores _pulsadores(pin);
 PantallaOLED _pantalla(data);
 Servidor _server(data);
 IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea de fábrica
-StaticJsonDocument <300> configJson;
+StaticJsonDocument <512> configJson;
 
 byte macDef[6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //Dirección MAC hardcodeada
 
@@ -84,8 +86,8 @@ void setup()
     /**
      * Setteo del reset y la interrupción de hardware
      */ 
-    pinMode(pin.pinRst, INPUT);
-    attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, RISING);
+    pinMode(pin.pinRst, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, LOW);
 
     #ifdef DEBUGMAC
     for(int i : data.mac) Serial.println(i, 16);
@@ -148,7 +150,7 @@ void funPul()
             _tomas.invertir(i);
             guardarSD();
         }
-    for(uint8_t i=0; i<3; i++) 
+    for(uint8_t i=0; i<4; i++) 
         if(_pulsadores.checkMenu(i))
         {
             millisPan = millis();
@@ -242,6 +244,11 @@ void guardarSD()
         configJson["clave"] = data.clave;
         configJson["puerto"] = data.puerto;
 
+        configJson["factorZMPT"] = data.factorZMPT;
+        configJson["factorACS"] = data.factorACS;
+        configJson["midPointZMPT"] = data.midPointZMPT;
+        configJson["midPointACS"] = data.midPointACS;
+
         for(int i=0; i<N; i++) configJson["estado"][i] = data.estTomas[i];
         for(int i=0; i<6; i++) configJson["mac"][i] = (int)data.mac[i];
 
@@ -295,6 +302,11 @@ void cargarSD()
             if(data.tempMin > data.tempMax || data.tempMin < -40) data.tempMin = -40;
             //else data.tempMin = data.tempMax;
 
+            data.factorZMPT = configJson["factorZMPT"];
+            data.factorACS = configJson["factorACS"];
+            data.midPointZMPT = configJson["midPointZMPT"];
+            data.midPointACS = configJson["midPointACS"];
+
             for(uint8_t i=0; i<N; i++) 
             {
                 data.estTomas[i] = configJson["estado"][i];
@@ -332,6 +344,10 @@ void cargarSD()
             for(int i=0; i<6; i++) Serial.println((int) configJson["mac"][i]);
             Serial.print("ipDef: ");
             for(int i=0; i<4; i++) Serial.println((int) configJson["ipDef"][i]);
+            Serial.println("FactorZMPT " + String(data.factorZMPT));
+            Serial.println("FactorACS " + String(data.factorACS));
+            Serial.println("midPointZMPT " + String(data.midPointZMPT));
+            Serial.println("midPointACS " + String(data.midPointACS));
             #endif
         }
         else crearSDdefecto(); //Si el archivo por alguna razón tiene un problema crea el archivo default.
@@ -368,6 +384,11 @@ void crearSDdefecto()
     configJson["usuario"] = "admin";
     configJson["clave"] = "12345";
 
+    configJson["factorZMPT"] = 1.0;
+    configJson["factorACS"] = 1.0;
+    configJson["midPointZMPT"] = 0.0;
+    configJson["midPointACS"] = 0.0;
+
     for(int i=0; i<N; i++) configJson["estado"][i] = 1;
     for(int i=0; i<6; i++) configJson["mac"][i] =(int) macDef[i];
 
@@ -383,7 +404,8 @@ void crearSDdefecto()
  * obtiene el dato escalado a la magnitud deseada.
  * 
  * @brief La función calcula el RMS de los sensores de tensión y corriente.
- * 
+ * @param asdasdasda
+ *
  */
 void funAnalog()
 {
@@ -398,30 +420,21 @@ void funAnalog()
     muestra = analogRead(pin.pinZmpt) - 512;
     sumZMPTSQ += (muestra*muestra);
 
-    #ifdef DEBUGANALOG
-    Serial.print("\n");
-    Serial.print("ADC:");
-    Serial.print((10000+muestra));
-    Serial.print(",");
-    Serial.print("SumSQ:");
-    Serial.print((0.001*sumZMPTSQ));
-    Serial.print(",");
-    Serial.print("SQINST:");
-    Serial.print((muestra*muestra));
-    Serial.print(",");
-    Serial.print("Tension:");
-    Serial.println((100.0*data.tension));
-    #endif
-
     if(++c==NMUESTRAS)
     {
         static unsigned long a=0;
 
         for(uint8_t i=0; i<5; i++) 
-            data.corriente[i] = sqrt((double)sumACSSQ[i] / NMUESTRAS);
+        {
+            data.corriente[i] = data.factorACS * sqrt((double)sumACSSQ[i] / NMUESTRAS);
+            data.corriente[i] -= data.midPointACS;
+        }    
+        
 
-        data.tension = FACTORZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
-    
+
+        data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
+        data.tension -= data.midPointZMPT;
+
         //Reseto de las variables 
         for(uint8_t i=0; i<5; i++) sumACSSQ[i]=0; //TODO borrar contenido con PROGMEM
         sumZMPTSQ=0;
@@ -431,7 +444,7 @@ void funAnalog()
         Serial.print(" Tension:");
         Serial.print(data.tension);
         Serial.print(" Sigma: ");
-        Serial.println(data.tension/FACTORZMPT);
+        Serial.println(data.tension/data.factorZMPT);
         #endif
     }
 }
