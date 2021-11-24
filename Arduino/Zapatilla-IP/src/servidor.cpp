@@ -323,7 +323,7 @@ String Servidor::retornoLecturas ()
     else if(cmd=="tempmin") r= String(data->tempMin) + 'C';
     else if(cmd=="temp") r= String(data->temp) + 'C';
     else if(cmd=="hum") r= String(data->hum) + '%' ;
-    else if(cmd=="tension") r= String(data->tension) + 'V' ;
+    else if(cmd=="tension") r= String(int(data->tension)) + 'V' ;
     else if(cmd=="dhcp") r=(data->dhcp ? "Si" : "No");
     else if(cmd=="puerto") r= String(data->puerto);
     else if(cmd=="ipdef") r=data->ipString;
@@ -339,7 +339,7 @@ String Servidor::retornoLecturas ()
     {
         StaticJsonDocument <300> jsonRequest;
         for(int i=0; i<N; i++)
-        jsonRequest["corriente"][i] = data->corriente[i];
+        jsonRequest["corriente"][i] = (data->corriente[i] >= 0.1 ? data->corriente[i] : 0);
         serializeJsonPretty(jsonRequest, r);
     } 
     else r="Peticion erronea";
@@ -571,8 +571,10 @@ bool Servidor::cambioCteZTMP()
     if(vAct <= 0) return 0;
     else
     {
-        float sigma = data->tension/data->factorZMPT;
-        data->factorZMPT = vAct/sigma;
+        float sigma = (data->tension + data->midPointZMPT)/data->factorZMPT;
+        data->factorZMPT = (vAct-data->midPointZMPT)/sigma;
+
+        data->midPointZMPT = 0;
 
         #ifdef DEBUGPET
         Serial.println("factorACS: " + String (data->factorZMPT));
@@ -591,8 +593,10 @@ bool Servidor::cambioCteACS()
     if(iAct <= 0) return 0;
     else
     {
-        float sigma = data->corriente[0]/data->factorACS;
-        data->factorACS = iAct/sigma;
+        float sigma = (data->corriente[0] + data->factorACS)/data->factorACS;
+        data->factorACS = (iAct-data->midPointACS)/sigma;
+
+        data->midPointACS = 0;
 
         #ifdef DEBUGPET
         Serial.println("factorACS: " + String (data->factorACS));

@@ -12,7 +12,7 @@
 #define BAUD1 9600
 #define BAUD2 115200
 
-//#define DEBUGSD
+#define DEBUGSD
 //#define DEBUGMAC
 //#define DEBUGDHCP
 //#define DEBUGPET
@@ -49,11 +49,11 @@ struct DATA
     float tension = 220;
     float temp, hum;
 
-    float factorZMPT = 2.563;
-    float factorACS = 2.563;
-    int midPointZMPT = 25, midPointACS = 25; 
+    float factorZMPT = 1;
+    float factorACS = 1;
+    float midPointZMPT = 0, midPointACS = 0; 
 
-    int8_t tempMax = 125, tempMin = -40;
+    int8_t tempMax = 80, tempMin = -40;
     String usuario = "admin", clave = "12345";
 
     bool dhcp = 0;

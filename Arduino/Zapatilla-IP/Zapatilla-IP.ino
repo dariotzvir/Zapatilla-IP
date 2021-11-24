@@ -19,7 +19,7 @@
 #define N 5
 #define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
 #define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
-#define NMUESTRAS 350
+#define NMUESTRAS 400
 /*
 #define MIDPOINTZMPT 25
 #define MIDPOINTACS 25
@@ -85,9 +85,12 @@ void setup()
 
     /**
      * Setteo del reset y la interrupción de hardware
+     * 
+     * Está desactivado porque se dispara sola la interrupción cuando conecto 220V por el 
+     * acople de la capacitancia con la tierra dered y gnd del equipo
      */ 
-    pinMode(pin.pinRst, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, LOW);
+    //pinMode(pin.pinRst, INPUT_PULLUP);
+    //attachInterrupt(digitalPinToInterrupt(pin.pinRst), intReset, FALLING);
 
     #ifdef DEBUGMAC
     for(int i : data.mac) Serial.println(i, 16);
@@ -121,7 +124,13 @@ void setup()
 }
 void loop() 
 {
-    if(flagReset) reset();
+    //if(flagReset) reset();
+    /*if(flagReset)
+    {
+        _pantalla.pantallaReset();
+        flagReset = 0;
+        delay(2000);
+    }*/
     funDHT();
     funPul();
     funAnalog();
@@ -218,10 +227,14 @@ void funPantalla()
             break;
     }
 }
+/**
+ * @brief resetea todos los valores de fábrica y llama al WDT
+ */
 void reset()
 {
-    _pantalla.pantallaReset();
-    if(!flagErrorSD) crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
+    
+    //_pantalla.pantallaReset();
+    //if(!flagErrorSD) crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
     wdt_enable(WDTO_60MS); //Llama al watchdog
 
     while(1);
@@ -376,7 +389,7 @@ void crearSDdefecto()
      * 125°C tempMax
      * -40°C tempMin
      */
-    configJson["tempMax"] = 125; 
+    configJson["tempMax"] = 80; 
     configJson["tempMin"] = -40;
     configJson["dhcp"] = 0;
     configJson["puerto"] = 80;
@@ -404,8 +417,6 @@ void crearSDdefecto()
  * obtiene el dato escalado a la magnitud deseada.
  * 
  * @brief La función calcula el RMS de los sensores de tensión y corriente.
- * @param asdasdasda
- *
  */
 void funAnalog()
 {
@@ -430,8 +441,6 @@ void funAnalog()
             data.corriente[i] -= data.midPointACS;
         }    
         
-
-
         data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
         data.tension -= data.midPointZMPT;
 
@@ -486,4 +495,18 @@ void funserver()
 /**
  * @brief ISR, cambia el flag de reset.
  */
-void intReset(){flagReset = 1;}
+//void intReset(){flagReset = 1;}
+/**
+ * @brief ISR, cambia el flag de reset.
+ */
+/*void intReset()
+{
+    flagReset = 1;
+    Serial.println("ansdasdasdasdasdasdasdasdasdas");
+    if(!flagErrorSD) 
+    {
+        crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
+        cargarSD();
+        _pantalla.resetBuf();
+    }
+}*/
