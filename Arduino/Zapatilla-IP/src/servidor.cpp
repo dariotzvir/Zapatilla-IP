@@ -594,8 +594,11 @@ bool Servidor::cambioCteACS()
     else
     {
         float sigma = (data->corriente[0] + data->factorACS)/data->factorACS;
-        data->factorACS = (iAct-data->midPointACS)/sigma;
-
+        data->factorACS = iAct/sigma;
+        Serial.print("Sigma: ");
+        Serial.print(sigma);
+        Serial.print("factor: ");
+        Serial.print(data->factorACS);
         data->midPointACS = 0;
 
         #ifdef DEBUGPET

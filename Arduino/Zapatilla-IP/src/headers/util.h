@@ -12,7 +12,7 @@
 #define BAUD1 9600
 #define BAUD2 115200
 
-#define DEBUGSD
+//#define DEBUGSD
 //#define DEBUGMAC
 //#define DEBUGDHCP
 //#define DEBUGPET

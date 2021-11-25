@@ -14,12 +14,14 @@
 #include "src/headers/pantallaOLED.h"
 #include "src/headers/servidor.h"
 #include "src/DHT22/DHT.h"
+#include "src/Filters-master/Filters.h"
 
 //Constantes
 #define N 5
 #define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
 #define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
-#define NMUESTRAS 400
+#define NMUESTRAS 250
+#define CTE_FILTRO 0.8 //(40.0/50)
 /*
 #define MIDPOINTZMPT 25
 #define MIDPOINTACS 25
@@ -40,6 +42,9 @@ IPAddress ipStored(192, 168, 254, 154); //IP hardcodeada para cuando se resetea 
 StaticJsonDocument <512> configJson;
 
 byte macDef[6] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; //Dirección MAC hardcodeada
+
+RunningStatistics _acs[N];
+RunningStatistics _zmpt;
 
 //Contadores de tiempo miscelanes:
 unsigned long millisDHT = 0;
@@ -120,20 +125,23 @@ void setup()
     for(uint8_t i=0; i<N; i++)
         pinMode(pin.ACS[i], INPUT);
 
+    for(int i=0; i<N; i++) _acs[i].setWindowSecs(CTE_FILTRO);
+    _zmpt.setWindowSecs(CTE_FILTRO);
+
     _pantalla.pantallaPrincipal();
 }
 void loop() 
 {
     //if(flagReset) reset();
-    /*if(flagReset)
+    if(flagReset)
     {
         _pantalla.pantallaReset();
         flagReset = 0;
         delay(2000);
-    }*/
+    }
     funDHT();
     funPul();
-    funAnalog();
+    funAnalogFiltro();
     funPantalla();
     funserver();
 }
@@ -418,7 +426,7 @@ void crearSDdefecto()
  * 
  * @brief La función calcula el RMS de los sensores de tensión y corriente.
  */
-void funAnalog()
+/*void funAnalog()
 {
     static int c=0;
     static unsigned long sumZMPTSQ=0, sumACSSQ[N]={0};
@@ -431,7 +439,7 @@ void funAnalog()
     muestra = analogRead(pin.pinZmpt) - 512;
     sumZMPTSQ += (muestra*muestra);
 
-    if(++c==NMUESTRAS)
+    if(++c==NMUESTRAS*3)
     {
         static unsigned long a=0;
 
@@ -441,7 +449,7 @@ void funAnalog()
             data.corriente[i] -= data.midPointACS;
         }    
         
-        data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
+        data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS*3); 
         data.tension -= data.midPointZMPT;
 
         //Reseto de las variables 
@@ -456,7 +464,7 @@ void funAnalog()
         Serial.println(data.tension/data.factorZMPT);
         #endif
     }
-}
+}*/
 /**
  * @brief Llama al método del objeto de Server y maneja los retornos con cambios externos a la clase
  */
@@ -510,3 +518,39 @@ void funserver()
         _pantalla.resetBuf();
     }
 }*/
+
+
+void funAnalogFiltro()
+{
+    static int c=0;
+    static unsigned long sumACSSQ=0;
+    int muestra;
+
+    for(int i=0; i<N; i++) _acs[i].input(analogRead(pin.ACS[i]) - 512);
+    _zmpt.input(analogRead(pin.pinZmpt) - 512);
+
+    if(++c==NMUESTRAS)
+    {
+        #ifdef DEBUGANALOG
+        static unsigned long a=0;
+        Serial.print("Sum: ");
+        Serial.print(sumACSSQ);
+        Serial.print("Tiempo: ");
+        Serial.println(millis() - a);
+        a = millis();
+        #endif
+
+        for(int i=0; i<N; i++) data.corriente[i] = data.factorACS * _acs[i].sigma();
+        data.tension = data.factorZMPT * _zmpt.sigma();
+
+        //Reseto de las variables 
+        c=0;
+
+        #ifdef DEBUGANALOG
+        Serial.print(" Corriente:");
+        Serial.print(data.corriente[0]);
+        Serial.print(" Sigma: ");
+        Serial.println(data.corriente[0]/data.factorACS);
+        #endif
+    }
+}
