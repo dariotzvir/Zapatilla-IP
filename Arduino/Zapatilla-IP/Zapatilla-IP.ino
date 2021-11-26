@@ -20,13 +20,8 @@
 #define N 5
 #define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
 #define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
-#define NMUESTRAS 250
-#define CTE_FILTRO 0.8 //(40.0/50)
-/*
-#define MIDPOINTZMPT 25
-#define MIDPOINTACS 25
-#define FACTORZMPT 2.563
-*/
+#define NMUESTRAS 200
+#define CTE_FILTRO 0.6 //(30.0/50)
 
 //Estructuras:
 struct DATA data;//Se pasa este struct a todos los objetos que necesiten guardar data
@@ -254,8 +249,9 @@ void guardarSD()
         #ifdef DEBUGSD
         Serial.println("Guardando");
         #endif
-        configJson.clear();
+        configJson.clear(); //Limpiar el JSON de la data que haya tenido antes por las dudas
 
+        //Pasa toda la data deseada a JSON
         for(int i=0; i<4; i++) configJson["ipDef"][i] = data.ipDef[i];
         configJson["tempMax"] = data.tempMax;
         configJson["tempMin"] = data.tempMin;
@@ -317,10 +313,12 @@ void cargarSD()
             data.dhcp = configJson["dhcp"];
 
             data.tempMax = configJson["tempMax"];
-            if(data.tempMax > 125 || data.tempMax < -40) data.tempMax = 125;
+            //Comprueba que el dato no sea invalido
+            if(data.tempMax > TEMP_MAX || data.tempMax < TEMP_MIN) data.tempMax = TEMP_MAX; 
             
             data.tempMin = configJson["tempMin"];
-            if(data.tempMin > data.tempMax || data.tempMin < -40) data.tempMin = -40;
+            //Comprueba que el dato no sea invalido
+            if(data.tempMin > data.tempMax || data.tempMin < TEMP_MIN) data.tempMin = TEMP_MIN;
             //else data.tempMin = data.tempMax;
 
             data.factorZMPT = configJson["factorZMPT"];
@@ -331,7 +329,7 @@ void cargarSD()
             for(uint8_t i=0; i<N; i++) 
             {
                 data.estTomas[i] = configJson["estado"][i];
-                _tomas.conm(i, data.estTomas[i]);
+                _tomas.conm(i, data.estTomas[i]); //Cambia el estado de los tomas a lo setteado en la SD
             }
 
             for(uint8_t i=0; i<6; i++) data.mac[i] = (int)configJson["mac"][i]; //Se castea porque sinó da problemas
@@ -394,13 +392,13 @@ void crearSDdefecto()
     for(int i=0; i<4; i++) configJson["ipDef"][i] = ipStored[i];
     /**
      * Los valores default de temperatura son según las especificaciones del sensor:
-     * 125°C tempMax
-     * -40°C tempMin
+     * TEMP_MAX°C tempMax
+     * TEMP_MIN°C tempMin
      */
-    configJson["tempMax"] = 80; 
-    configJson["tempMin"] = -40;
+    configJson["tempMax"] = TEMP_MAX; 
+    configJson["tempMin"] = TEMP_MIN;
     configJson["dhcp"] = 0;
-    configJson["puerto"] = 80;
+    configJson["puerto"] = PUERTO_DEFAULT;
 
     configJson["usuario"] = "admin";
     configJson["clave"] = "12345";

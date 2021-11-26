@@ -11,6 +11,9 @@
 #endif
 #define BAUD1 9600
 #define BAUD2 115200
+#define TEMP_MAX 80
+#define TEMP_MIN -40
+#define PUERTO_DEFAULT 80
 
 //#define DEBUGSD
 //#define DEBUGMAC

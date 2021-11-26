@@ -392,7 +392,7 @@ void PantallaOLED::logicaDer()
     if(flagSelec) //Si se está modificando una variable se aumenta la misma hasta su límite
     {
         if(pantallaSelec == TMIN && bufferTempMin < bufferTempMax) bufferTempMin++;
-        if(pantallaSelec == TMAX && bufferTempMax < 125) bufferTempMax++;
+        if(pantallaSelec == TMAX && bufferTempMax < TEMP_MAX) bufferTempMax++;
         if(pantallaSelec == DHCP) bufferDHCP = !bufferDHCP;
     }
     else 
@@ -408,7 +408,7 @@ void PantallaOLED::logicaIzq()
     if(pantallaSelec == PRINCIPAL || pantallaSelec == APAGADA) pantallaSelec = TMIN; //Si está en una pantalla que no sea de menú cambia a una que lo es
     if(flagSelec) //Si se está modificando una variable se disminuye la misma hasta su límite
     {
-        if(pantallaSelec == TMIN && bufferTempMin > -40) bufferTempMin--;
+        if(pantallaSelec == TMIN && bufferTempMin > TEMP_MIN) bufferTempMin--;
         if(pantallaSelec == TMAX && bufferTempMax > bufferTempMin) bufferTempMax--;
         if(pantallaSelec == DHCP) bufferDHCP = !bufferDHCP;
     }

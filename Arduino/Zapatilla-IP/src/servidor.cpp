@@ -427,7 +427,7 @@ bool Servidor::cambioTemp(bool flag)
 
     if (flag)
     {
-        if(aux<=125 && aux>=data->tempMin) 
+        if(aux<=TEMP_MAX && aux>=data->tempMin) 
         {
             data->tempMax=aux;
             return 1;
@@ -436,7 +436,7 @@ bool Servidor::cambioTemp(bool flag)
     }
     else
     {
-        if(aux>=-40 && aux<=data->tempMax) 
+        if(aux>=TEMP_MIN && aux<=data->tempMax) 
         {
             data->tempMin=aux;
             return 1;
