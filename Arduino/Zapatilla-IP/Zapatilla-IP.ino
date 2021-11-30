@@ -20,7 +20,7 @@
 #define N 5
 #define PERIODODHT 2000 //Tiempo entre muestras sensor de temperatura.
 #define PERIODOPAN 30000 //Tiempo para que la pantalla quede encendida.
-#define NMUESTRAS 200
+#define NMUESTRAS 250
 #define CTE_FILTRO 0.6 //(30.0/50)
 
 //Estructuras:
@@ -424,7 +424,7 @@ void crearSDdefecto()
  * 
  * @brief La función calcula el RMS de los sensores de tensión y corriente.
  */
-/*void funAnalog()
+void funAnalog()
 {
     static int c=0;
     static unsigned long sumZMPTSQ=0, sumACSSQ[N]={0};
@@ -462,7 +462,7 @@ void crearSDdefecto()
         Serial.println(data.tension/data.factorZMPT);
         #endif
     }
-}*/
+}
 /**
  * @brief Llama al método del objeto de Server y maneja los retornos con cambios externos a la clase
  */
@@ -521,11 +521,14 @@ void funserver()
 void funAnalogFiltro()
 {
     static int c=0;
-    static unsigned long sumACSSQ=0;
-    int muestra;
+    static unsigned long sumZMPTSQ=0;
+    int8_t muestra;
 
     for(int i=0; i<N; i++) _acs[i].input(analogRead(pin.ACS[i]) - 512);
-    _zmpt.input(analogRead(pin.pinZmpt) - 512);
+    //_zmpt.input(analogRead(pin.pinZmpt) - 512);
+
+    muestra = analogRead(pin.pinZmpt);
+    sumZMPTSQ += (muestra*muestra);
 
     if(++c==NMUESTRAS)
     {
@@ -539,10 +542,14 @@ void funAnalogFiltro()
         #endif
 
         for(int i=0; i<N; i++) data.corriente[i] = data.factorACS * _acs[i].sigma();
-        data.tension = data.factorZMPT * _zmpt.sigma();
+        //data.tension = data.factorZMPT * _zmpt.sigma();
+
+        data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
+        data.tension -= data.midPointZMPT;
 
         //Reseto de las variables 
         c=0;
+        sumZMPTSQ=0;
 
         #ifdef DEBUGANALOG
         Serial.print(" Corriente:");
@@ -551,4 +558,4 @@ void funAnalogFiltro()
         Serial.println(data.corriente[0]/data.factorACS);
         #endif
     }
-}
+}  
