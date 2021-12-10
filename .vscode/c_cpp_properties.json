@@ -3,9 +3,8 @@
     "configurations": [
         {
             "name": "Arduino",
-            "compilerPath": "/Users/a1369/Library/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-g++",
+            "compilerPath": "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\bin\\avr-g++",
             "compilerArgs": [
-                "-w",
                 "-std=gnu++11",
                 "-fpermissive",
                 "-fno-exceptions",
@@ -16,28 +15,28 @@
             ],
             "intelliSenseMode": "gcc-x64",
             "includePath": [
-                "/Users/a1369/Library/Arduino15/packages/arduino/hardware/avr/1.8.3/cores/arduino",
-                "/Users/a1369/Library/Arduino15/packages/arduino/hardware/avr/1.8.3/variants/mega",
-                "/Applications/Arduino.app/Contents/Java/libraries/SD/src",
-                "/Users/a1369/Documents/Arduino/libraries/ArduinoJson-6.17.3/src",
-                "/Users/a1369/Library/Arduino15/packages/arduino/hardware/avr/1.8.3/libraries/Wire/src",
-                "/Users/a1369/Documents/Arduino/libraries/Adafruit_SSD1306-master",
-                "/Users/a1369/Documents/Arduino/libraries/Adafruit-GFX-Library-master",
-                "/Users/a1369/Library/Arduino15/packages/arduino/hardware/avr/1.8.3/libraries/SPI/src",
-                "/Applications/Arduino.app/Contents/Java/libraries/Ethernet/src",
-                "/Users/a1369/Documents/Arduino/libraries/Adafruit_BusIO-master",
-                "/Users/a1369/Library/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/lib/gcc/avr/7.3.0/include",
-                "/Users/a1369/Library/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/lib/gcc/avr/7.3.0/include-fixed",
-                "/Users/a1369/Library/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/avr/include"
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\mega",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\SD\\src",
+                "C:\\Users\\dario.tzvir\\Documents\\Arduino\\libraries\\ArduinoJson\\src",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\Wire\\src",
+                "C:\\Users\\dario.tzvir\\Documents\\Arduino\\libraries\\Adafruit_SSD1306",
+                "C:\\Users\\dario.tzvir\\Documents\\Arduino\\libraries\\Adafruit_GFX_Library",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\SPI\\src",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\Ethernet\\src",
+                "C:\\Users\\dario.tzvir\\Documents\\Arduino\\libraries\\Adafruit_BusIO",
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include-fixed",
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\avr\\include"
             ],
             "forcedInclude": [
-                "/Users/a1369/Library/Arduino15/packages/arduino/hardware/avr/1.8.3/cores/arduino/Arduino.h"
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
             ],
             "cStandard": "c11",
             "cppStandard": "c++11",
             "defines": [
                 "F_CPU=16000000L",
-                "ARDUINO=10815",
+                "ARDUINO=10816",
                 "ARDUINO_AVR_MEGA2560",
                 "ARDUINO_ARCH_AVR",
                 "__DBL_MIN_EXP__=(-125)",

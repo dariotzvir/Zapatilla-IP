@@ -190,7 +190,7 @@ int8_t Servidor::ejecutarCmd()
     cmd.toLowerCase();
     int8_t i=0, index=-1;
 
-    errorParam=0;
+    errorParam=1;
     
     for(i=0; i<M; i++) 
         if(cmd==str[i]) 
