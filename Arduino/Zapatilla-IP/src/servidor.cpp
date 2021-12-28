@@ -8,6 +8,7 @@
 #define isAlfaNum(c)((c >= '0' && c <= '9') ||(c >= 'A' && c <= 'Z') ||(c >= 'a' && c <= 'z'))
 #define isHexadecimalDigit(c)((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))
 #define fromCharToInt(c)(c-48)
+#define round(c)((int)(100*c)/100.0)
 
 EthernetClient cmdCliente;
 
@@ -208,7 +209,6 @@ int8_t Servidor::ejecutarCmd()
 
     return index;
 }
-
 void Servidor::devolucion()
 {
     cmdCliente.println("HTTP/1.1 200 OK");
@@ -216,7 +216,7 @@ void Servidor::devolucion()
     cmdCliente.println("Connection: close");
     cmdCliente.println(); 
     
-    if(ruta==HOME) cmdCliente.println("Zapatilla IP OK");
+    if(ruta==HOME) cmdCliente.println("[12]");
     else if(ruta==ERROR) cmdCliente.println("Ruta incorrecta");
 
     else if(errorLogin) cmdCliente.println("Login incorrecto");
@@ -342,6 +342,111 @@ String Servidor::retornoLecturas ()
         jsonRequest["corriente"][i] = (data->corriente[i] >= 0.1 ? data->corriente[i] : 0);
         serializeJsonPretty(jsonRequest, r);
     } 
+
+    /**
+     * Estos comandos son para usar con PRTG y los sensores de HTTP y JSON, formatea
+     * distintos JSON con tags propios de PRTG para detectar correctamente las variables:
+     * 
+     * El JSON primero tine un campo "prtg" dentro de el un vector "result" con cada valor.
+     * 
+     * {
+     *      "prtg"{
+     *          "result"[
+     *              {
+     *                  "channel": "Corriente 1",
+     *                  "value": "0.00",
+     *                  "float": "1",
+     *                  "unit": "custom",
+     *                  "customunit": "A"
+     *              },
+     *              {
+     *                  "channel": "Corriente 1",
+     *                  "value": "0.00",
+     *                  "float": "1",
+     *                  "unit": "custom",
+     *                  "customunit": "A"
+     *              }
+     *          ]
+     *      }
+     * }
+     * 
+     * "channel" es para el nombre de la variable.
+     * "value" valor de la variable.
+     * "unit" indica cual unidad es o si es una variable customizada por el usuario. (Se le pone "custom" para que decir que es personalizada).
+     * "customunit" pone el nombre personalizado de la unidad de la varible si se lo indio en unit.
+     * "float" flag que indica si la variable es float, PRTG soporta ints y floats.
+     * 
+     * No se ponen todas las variables juntas en un solo JSON ya que con todos los tags el archivo se hace muy largo para la RAM del micro
+     * por lo que los agrupé en tres comandos más cortos, también hay problemas con la memoria si el código dentro de los if se los lleva a una función,
+     * en ese caso la memoria se llena antes.
+     */ 
+    else if(cmd == "prtgtomas") 
+    {
+        StaticJsonDocument <400> jsonRequest;
+        JsonObject prtg = jsonRequest.createNestedObject("prtg"); //Crea la variable "prtg"
+        JsonArray vec = prtg.createNestedArray("result");//Crea el vector "prtg"
+        String canales[5]= { "Toma 1", "Toma 2", "Toma 3", "Toma 4", "Toma 5"}; //Lista de variables
+
+        for(int i=0; i<5; i++)
+        {
+            //Añade a cada objeto el campo
+            JsonObject elemento = vec.createNestedObject();
+            elemento["channel"] = canales[i];
+            //Lo transforma primero en int ya que sinó al castear el bool como String lo pone como true o false
+            elemento["value"] = (String)((int)data->estTomas[i]); 
+            elemento["unit"] = "custom";
+            elemento["customunit"] = "";
+        }
+        serializeJsonPretty(jsonRequest, r);
+    }
+    else if(cmd == "prtgenergia") 
+    {
+        StaticJsonDocument <400> jsonRequest;
+        JsonObject prtg = jsonRequest.createNestedObject("prtg");
+        JsonArray vec = prtg.createNestedArray("result");
+        String canales[6]= {"Corriente 1", "Corriente 2", "Corriente 3", "Corriente 4", "Corriente 5", "Tension"};
+
+        for(int i=0; i<5; i++)
+        {
+            JsonObject elemento = vec.createNestedObject();
+            elemento["channel"] = canales[i];
+            //Redondea a dos decimales y luego castea a String
+            elemento["value"] = (String)(round(data->corriente[i]));
+            elemento["float"] = "1";
+            elemento["unit"] = "custom";
+            elemento["customunit"] = "A";
+        }
+        JsonObject elemento = vec.createNestedObject();
+        elemento["channel"] = canales[5];
+        elemento["value"] = (String)(round(data->tension));
+        elemento["float"] = "1";
+        elemento["unit"] = "custom";
+        elemento["customunit"] = "V";
+
+        serializeJsonPretty(jsonRequest, r);
+    }
+    else if(cmd == "prtgtemp")
+    {
+        StaticJsonDocument <400> jsonRequest;
+        JsonObject prtg = jsonRequest.createNestedObject("prtg");
+        JsonArray vec = prtg.createNestedArray("result");
+
+        JsonObject temp = vec.createNestedObject();
+        temp["channel"] = "Temperatura";
+        temp["value"] = (String)(round(data->temp));
+        temp["float"] = "1";
+        temp["unit"] = "custom";
+        temp["customunit"] = "Celsius";
+
+        JsonObject hum = vec.createNestedObject();
+        hum["channel"] = "Humedad";
+        hum["value"] = (String)(round(data->hum));
+        hum["float"] = "1";
+        hum["unit"] = "custom";
+        hum["customunit"] = "%";
+
+        serializeJsonPretty(jsonRequest, r);
+    }
     else r="Peticion erronea";
 
     return r;
