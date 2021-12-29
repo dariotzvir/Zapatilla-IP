@@ -216,7 +216,7 @@ void Servidor::devolucion()
     cmdCliente.println("Connection: close");
     cmdCliente.println(); 
     
-    if(ruta==HOME) cmdCliente.println("[12]");
+    if(ruta==HOME) cmdCliente.println("Zapatilla IP OK");
     else if(ruta==ERROR) cmdCliente.println("Ruta incorrecta");
 
     else if(errorLogin) cmdCliente.println("Login incorrecto");
@@ -676,13 +676,11 @@ bool Servidor::cambioCteZTMP()
     if(vAct <= 0) return 0;
     else
     {
-        float sigma = (data->tension + data->midPointZMPT)/data->factorZMPT;
-        data->factorZMPT = (vAct-data->midPointZMPT)/sigma;
-
-        data->midPointZMPT = 0;
+        float sigma = data->tension/data->factorZMPT;
+        data->factorZMPT = vAct/sigma;
 
         #ifdef DEBUGPET
-        Serial.println("factorACS: " + String (data->factorZMPT));
+        Serial.println("factorZMPT: " + String (data->factorZMPT));
         #endif
     }
     
@@ -698,31 +696,18 @@ bool Servidor::cambioCteACS()
     if(iAct <= 0) return 0;
     else
     {
-        float sigma = (data->corriente[0] + data->factorACS)/data->factorACS;
+        float sigma = data->corriente[0]/data->factorACS;
         data->factorACS = iAct/sigma;
         Serial.print("Sigma: ");
         Serial.print(sigma);
         Serial.print("factor: ");
         Serial.print(data->factorACS);
-        data->midPointACS = 0;
 
         #ifdef DEBUGPET
         Serial.println("factorACS: " + String (data->factorACS));
         #endif    
     }
     
-    return 1;
-}
-bool Servidor::cambioCeroZMPT()
-{
-    data->midPointZMPT = data->tension;
-    
-    return 1;
-}
-bool Servidor::cambioCeroACS()
-{
-    data->midPointACS = data->corriente[0];
-
     return 1;
 }
 void Servidor::checkDHCP ()

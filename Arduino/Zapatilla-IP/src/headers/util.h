@@ -18,7 +18,7 @@
 //#define DEBUGSD
 //#define DEBUGMAC
 //#define DEBUGDHCP
-#define DEBUGPET
+//#define DEBUGPET
 //#define DEBUGPUL
 //#define DEBUGANALOG
 
@@ -54,7 +54,6 @@ struct DATA
 
     float factorZMPT = 1;
     float factorACS = 1;
-    float midPointZMPT = 0, midPointACS = 0; 
 
     int8_t tempMax = 80, tempMin = -40;
     String usuario = "admin", clave = "12345";

@@ -13,7 +13,7 @@
 #ifndef N
 #define N 5
 #endif
-#define M 14
+#define M 12
 #define FUERARANGO "Fuera de rango"
 #define ERRORPET "Peticion erronea"
 #define GUARDADO "Guardado"
@@ -87,16 +87,14 @@ class Servidor: EthernetServer
             "mac", "tempmax", "tempmin", 
             "tomas", "ipdef", "dhcp", 
             "puerto", "usuario", "clave",
-            "verificar", "calibtension", "calibcorriente", 
-            "cerotension", "cerocorriente"
+            "verificar", "calibtension", "calibcorriente"
         };
         bool (Servidor::*fun[M]) () = 
         { 
             &Servidor::cambioMac, &Servidor::cambioTempMax, &Servidor::cambioTempMin, 
             &Servidor::cambioTomas, &Servidor::cambioIp, &Servidor::cambioDhcp, 
             &Servidor::cambioPuerto, &Servidor::cambioUser, &Servidor::cambioClave, 
-            &Servidor::verificarCambio, &Servidor::cambioCteZTMP, &Servidor::cambioCteACS,
-            &Servidor::cambioCeroZMPT, &Servidor::cambioCeroACS
+            &Servidor::verificarCambio, &Servidor::cambioCteZTMP, &Servidor::cambioCteACS
         };
         unsigned long millisDHCP=0;
 };

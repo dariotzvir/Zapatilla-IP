@@ -121,7 +121,7 @@ void setup()
         pinMode(pin.ACS[i], INPUT);
 
     for(int i=0; i<N; i++) _acs[i].setWindowSecs(CTE_FILTRO);
-    _zmpt.setWindowSecs(CTE_FILTRO);
+    _zmpt.setWindowSecs(CTE_FILTRO+0.2);
 
     _pantalla.pantallaPrincipal();
 }
@@ -263,8 +263,6 @@ void guardarSD()
 
         configJson["factorZMPT"] = data.factorZMPT;
         configJson["factorACS"] = data.factorACS;
-        configJson["midPointZMPT"] = data.midPointZMPT;
-        configJson["midPointACS"] = data.midPointACS;
 
         for(int i=0; i<N; i++) configJson["estado"][i] = data.estTomas[i];
         for(int i=0; i<6; i++) configJson["mac"][i] = (int)data.mac[i];
@@ -323,8 +321,6 @@ void cargarSD()
 
             data.factorZMPT = configJson["factorZMPT"];
             data.factorACS = configJson["factorACS"];
-            data.midPointZMPT = configJson["midPointZMPT"];
-            data.midPointACS = configJson["midPointACS"];
 
             for(uint8_t i=0; i<N; i++) 
             {
@@ -405,8 +401,6 @@ void crearSDdefecto()
 
     configJson["factorZMPT"] = 1.0;
     configJson["factorACS"] = 1.0;
-    configJson["midPointZMPT"] = 0.0;
-    configJson["midPointACS"] = 0.0;
 
     for(int i=0; i<N; i++) configJson["estado"][i] = 1;
     for(int i=0; i<6; i++) configJson["mac"][i] =(int) macDef[i];
@@ -415,53 +409,6 @@ void crearSDdefecto()
     File config = SD.open("config.txt", FILE_WRITE); //Crea uno nuevo en blanco.
     serializeJsonPretty(configJson, config); //Lo escribe en formatop JSON.
     config.close(); //Cierra el archivo.
-}
-/**
- * 
- * RMS = sqrt( Sumatoria(muestras^2)/NUM_muestras )
- * Con el valor RMS luego se lo escala por un factor tomado prácticamente, ya que al dar los valores del ADC no se
- * obtiene el dato escalado a la magnitud deseada.
- * 
- * @brief La función calcula el RMS de los sensores de tensión y corriente.
- */
-void funAnalog()
-{
-    static int c=0;
-    static unsigned long sumZMPTSQ=0, sumACSSQ[N]={0};
-    int8_t muestra;
-    for(uint8_t i=0; i<N; i++) 
-    {
-        muestra = analogRead(pin.ACS[i]) - 512; //Asume que 512 es el 0 de la señal (tendría que corregirse el sensor).
-        sumACSSQ[i] += (muestra*muestra); //Sumatoria
-    }
-    muestra = analogRead(pin.pinZmpt) - 512;
-    sumZMPTSQ += (muestra*muestra);
-
-    if(++c==NMUESTRAS*3)
-    {
-        static unsigned long a=0;
-
-        for(uint8_t i=0; i<5; i++) 
-        {
-            data.corriente[i] = data.factorACS * sqrt((double)sumACSSQ[i] / NMUESTRAS);
-            data.corriente[i] -= data.midPointACS;
-        }    
-        
-        data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS*3); 
-        data.tension -= data.midPointZMPT;
-
-        //Reseto de las variables 
-        for(uint8_t i=0; i<5; i++) sumACSSQ[i]=0; //TODO borrar contenido con PROGMEM
-        sumZMPTSQ=0;
-        c=0;
-
-        #ifdef DEBUGANALOG
-        Serial.print(" Tension:");
-        Serial.print(data.tension);
-        Serial.print(" Sigma: ");
-        Serial.println(data.tension/data.factorZMPT);
-        #endif
-    }
 }
 /**
  * @brief Llama al método del objeto de Server y maneja los retornos con cambios externos a la clase
@@ -498,58 +445,22 @@ void funserver()
         if(retorno != 7 && retorno != 8) guardarSD();
     }
 }
-/**
- * @brief ISR, cambia el flag de reset.
- */
-//void intReset(){flagReset = 1;}
-/**
- * @brief ISR, cambia el flag de reset.
- */
-/*void intReset()
-{
-    flagReset = 1;
-    Serial.println("ansdasdasdasdasdasdasdasdasdas");
-    if(!flagErrorSD) 
-    {
-        crearSDdefecto(); //Si se levantó una SD durante el boot se crea el archivo por defecto que se hubiera creado de no tener un archivo de configuración
-        cargarSD();
-        _pantalla.resetBuf();
-    }
-}*/
-
 
 void funAnalogFiltro()
 {
     static int c=0;
-    static unsigned long sumZMPTSQ=0;
     int8_t muestra;
 
     for(int i=0; i<N; i++) _acs[i].input(analogRead(pin.ACS[i]) - 512);
-    //_zmpt.input(analogRead(pin.pinZmpt) - 512);
+    _zmpt.input(analogRead(pin.pinZmpt) - 512);
 
-    muestra = analogRead(pin.pinZmpt);
-    sumZMPTSQ += (muestra*muestra);
+    //muestra = analogRead(pin.pinZmpt);
+    //sumZMPTSQ += (muestra*muestra);
 
     if(++c==NMUESTRAS)
     {
-        #ifdef DEBUGANALOG
-        static unsigned long a=0;
-        Serial.print("Sum: ");
-        Serial.print(sumACSSQ);
-        Serial.print("Tiempo: ");
-        Serial.println(millis() - a);
-        a = millis();
-        #endif
-
         for(int i=0; i<N; i++) data.corriente[i] = data.factorACS * _acs[i].sigma();
-        //data.tension = data.factorZMPT * _zmpt.sigma();
-
-        data.tension = data.factorZMPT * sqrt((double)sumZMPTSQ / NMUESTRAS); 
-        data.tension -= data.midPointZMPT;
-
-        //Reseto de las variables 
-        c=0;
-        sumZMPTSQ=0;
+        data.tension = data.factorZMPT * _zmpt.sigma();
 
         #ifdef DEBUGANALOG
         Serial.print(" Corriente:");
@@ -557,5 +468,7 @@ void funAnalogFiltro()
         Serial.print(" Sigma: ");
         Serial.println(data.corriente[0]/data.factorACS);
         #endif
+
+        c=0;
     }
 }  
